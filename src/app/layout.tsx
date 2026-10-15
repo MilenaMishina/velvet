@@ -43,11 +43,17 @@ export const metadata: Metadata = {
   },
   twitter: { card: 'summary_large_image' },
   robots: { index: true, follow: true },
-  // Self-labelling for adult content. This is the RTA (Restricted To Adults)
-  // label, which parental-control and safe-search filters read — an adult site
-  // that omits it gets miscategorised as general-audience content, which is a
-  // real problem for a site aimed at an adult audience, not a legal formality.
-  other: { rating: 'RTA-5042-1996-1400-1577-RTA' },
+  other: {
+    // Self-labelling for adult content. This is the RTA (Restricted To Adults)
+    // label, which parental-control and safe-search filters read — an adult site
+    // that omits it gets miscategorised as general-audience content, which is a
+    // real problem for a site aimed at an adult audience, not a legal formality.
+    rating: 'RTA-5042-1996-1400-1577-RTA',
+    // Ad-network site verification. Must be a static tag in the server-rendered
+    // <head> exactly as issued — the network's crawler does not run JavaScript,
+    // so anything injected client-side would never be seen.
+    'juicyads-site-verification': '03e66023ac6e4d0cd6382434a9b333db',
+  },
 };
 
 export const viewport: Viewport = {
