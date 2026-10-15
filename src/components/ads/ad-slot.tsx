@@ -22,6 +22,23 @@ function juicyQueue(): Array<{ adzone: number }> {
 }
 
 /**
+ * Did the zone fill?
+ *
+ * Measured on the container rather than on our own element, because the loader does
+ * not fill the `<ins>` in place — it *replaces* it with its own frame. A check that
+ * only looked inside our element therefore found it empty, declared the zone a
+ * failure, and rendered the stand-in alongside a perfectly good ad. Watching the
+ * container catches every shape of a fill: content written inside the element, the
+ * element swapped out, or a frame added next to it.
+ */
+function zoneFilled(host: HTMLElement, ins: HTMLElement): boolean {
+  if (ins.children.length > 0 || ins.innerHTML.trim().length > 0) return true;
+  // Ours is the only child until the loader does something: anything else in here,
+  // or our element having been detached, means the zone answered.
+  return host.children.length > (ins.isConnected ? 1 : 0);
+}
+
+/**
  * Queue a zone and report whether it filled.
  *
  * The `<ins>` element is built with DOM calls and appended into a container React
@@ -66,8 +83,7 @@ export function useJuicyZone(zone: JuicyZone | null) {
     juicyQueue().push({ adzone: Number(zone.id) });
 
     const timer = window.setTimeout(() => {
-      const filled = ins.children.length > 0 || ins.innerHTML.trim().length > 0;
-      if (filled && !adRuntime.juicyLoaderFailed) return;
+      if (zoneFilled(host, ins) && !adRuntime.juicyLoaderFailed) return;
       // Remove our element *before* React renders the stand-in, so the two never
       // appear in the container at the same time.
       ins.remove();
