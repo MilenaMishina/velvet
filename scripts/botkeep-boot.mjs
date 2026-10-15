@@ -13,7 +13,7 @@
  * and hard-coding a port instead of using the one the platform assigns.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 const root = process.cwd();
@@ -53,9 +53,28 @@ if (!existsSync(nextBin)) {
   run('installing dependencies', 'npm', ['ci', '--include=dev']);
 }
 
-// 3. Build, if this copy has never been built.
-if (!existsSync(path.join(root, '.next', 'BUILD_ID'))) {
+// 3. Build — if this copy has never been built, or if the public configuration has
+//    changed since it was.
+//
+//    Next inlines every NEXT_PUBLIC_* value into the client bundle at build time, so
+//    changing the site URL (attaching a domain, moving hosts) silently has no effect
+//    on a restart alone — the served build still carries the old value. Recording the
+//    values a build was made with makes that self-correcting: change one, restart,
+//    and the build is redone.
+const publicEnvFingerprint = JSON.stringify({
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? '',
+  siteName: process.env.NEXT_PUBLIC_SITE_NAME ?? '',
+});
+const buildMarker = path.join(root, '.next', '.public-env');
+const builtWith = existsSync(buildMarker) ? readFileSync(buildMarker, 'utf8') : '';
+
+if (!existsSync(path.join(root, '.next', 'BUILD_ID')) || builtWith !== publicEnvFingerprint) {
   run('building', process.execPath, [nextBin, 'build']);
+  try {
+    writeFileSync(buildMarker, publicEnvFingerprint);
+  } catch {
+    // A read-only .next just means the next boot rebuilds again; not fatal.
+  }
 }
 
 // 4. Serve. Prefer the platform's assigned port, then PORT, then the Next default.
