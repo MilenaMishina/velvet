@@ -1,0 +1,309 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ------------------------------------------------------------------------- *
+ * Design tokens.
+ *
+ * Colours are stored as bare HSL triplets ("240 24% 6%") so Tailwind can wrap
+ * them in `hsl(var(--token) / <alpha-value>)` and every `/50` opacity modifier
+ * keeps working. Switching theme = swapping `data-theme` on <html>.
+ *
+ * `--surface-alpha` + `--blur-panel` are what make the Glass theme translucent
+ * without a single conditional in component code: panels always render with
+ * `background: hsl(var(--surface) / var(--surface-alpha))`.
+ * ------------------------------------------------------------------------- */
+
+@layer base {
+  :root {
+    --radius-card: 1.15rem;
+    --radius-control: 0.75rem;
+    --blur-nav: 22px;
+    --blur-panel: 0px;
+    --surface-alpha: 1;
+    --border-alpha: 1;
+    --nav-alpha: 0.72;
+    --panel-saturate: 100%;
+  }
+
+  /* ── Noir (id: midnight): the default. Near-black blue, icy azure + hot rose. ──
+     Deliberately dark: the backdrop stays under 6% lightness so posters carry
+     the colour, which is the whole point of a thumbnails-first site. */
+  :root,
+  [data-theme='midnight'] {
+    color-scheme: dark;
+
+    --bg: 220 45% 4%;
+    --surface: 221 38% 8%;
+    --surface-raised: 220 33% 12%;
+    --surface-sunken: 221 52% 2%;
+
+    --border: 220 25% 17%;
+    --border-strong: 220 30% 28%;
+
+    --fg: 214 40% 98%;
+    --fg-muted: 216 20% 73%;
+    --fg-subtle: 217 14% 55%;
+
+    --primary: 213 94% 61%;
+    --primary-fg: 222 60% 6%;
+    --accent: 330 88% 63%;
+    --accent-fg: 330 60% 7%;
+    --ring: 213 94% 68%;
+
+    --success: 152 64% 46%;
+    --warning: 38 94% 58%;
+    --danger: 356 80% 60%;
+
+    --shadow-soft: 0 1px 2px hsl(220 60% 1% / 0.6);
+    --shadow-card: 0 10px 30px -12px hsl(220 60% 1% / 0.8);
+    --shadow-lifted: 0 26px 60px -22px hsl(220 70% 1% / 0.9);
+    --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.35), 0 18px 50px -18px hsl(var(--primary) / 0.6);
+
+    --aurora:
+      radial-gradient(58rem 30rem at 12% -8%, hsl(213 94% 55% / 0.26), transparent 62%),
+      radial-gradient(46rem 26rem at 92% 4%, hsl(330 88% 58% / 0.18), transparent 60%),
+      radial-gradient(40rem 28rem at 50% 108%, hsl(258 84% 60% / 0.14), transparent 65%);
+  }
+
+  /* ── Paper: warm light. Soft shadows, generous air, ink-on-cream contrast. ── */
+  [data-theme='paper'] {
+    color-scheme: light;
+
+    --bg: 38 44% 96%;
+    --surface: 0 0% 100%;
+    --surface-raised: 40 50% 99%;
+    --surface-sunken: 36 30% 92%;
+
+    --border: 34 24% 87%;
+    --border-strong: 32 18% 72%;
+
+    --fg: 28 26% 12%;
+    --fg-muted: 28 12% 36%;
+    --fg-subtle: 28 10% 50%;
+
+    --primary: 221 83% 52%;
+    --primary-fg: 0 0% 100%;
+    --accent: 330 74% 48%;
+    --accent-fg: 0 0% 100%;
+    --ring: 221 83% 54%;
+
+    --success: 152 62% 36%;
+    --warning: 32 88% 42%;
+    --danger: 356 70% 48%;
+
+    --nav-alpha: 0.78;
+    --shadow-soft: 0 1px 2px hsl(30 24% 40% / 0.1);
+    --shadow-card: 0 12px 28px -16px hsl(30 30% 30% / 0.28);
+    --shadow-lifted: 0 28px 56px -24px hsl(30 30% 25% / 0.32);
+    --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.28), 0 16px 40px -18px hsl(var(--primary) / 0.4);
+
+    --aurora:
+      radial-gradient(52rem 28rem at 8% -10%, hsl(221 83% 58% / 0.16), transparent 60%),
+      radial-gradient(44rem 24rem at 96% 0%, hsl(330 74% 56% / 0.13), transparent 58%),
+      radial-gradient(38rem 26rem at 46% 106%, hsl(190 70% 55% / 0.1), transparent 62%);
+  }
+
+  /* ── Glass: translucent frosted panels floating over deep blue. ── */
+  [data-theme='glass'] {
+    color-scheme: dark;
+
+    --bg: 218 62% 5%;
+    --surface: 210 56% 62%;
+    --surface-raised: 205 70% 70%;
+    --surface-sunken: 214 60% 6%;
+
+    --border: 202 70% 82%;
+    --border-strong: 199 90% 78%;
+
+    --fg: 202 40% 98%;
+    --fg-muted: 203 32% 84%;
+    --fg-subtle: 205 24% 70%;
+
+    --primary: 199 92% 62%;
+    --primary-fg: 214 70% 8%;
+    --accent: 286 88% 74%;
+    --accent-fg: 288 60% 10%;
+    --ring: 199 92% 70%;
+
+    --success: 158 72% 52%;
+    --warning: 42 96% 62%;
+    --danger: 352 84% 66%;
+
+    /* The two knobs that turn every panel into frosted glass. */
+    --surface-alpha: 0.12;
+    --border-alpha: 0.22;
+    --nav-alpha: 0.1;
+    --blur-panel: 20px;
+    --panel-saturate: 170%;
+    --blur-nav: 28px;
+
+    --shadow-soft: 0 1px 2px hsl(214 70% 3% / 0.4);
+    --shadow-card: 0 16px 40px -18px hsl(214 80% 3% / 0.7);
+    --shadow-lifted: 0 30px 70px -26px hsl(214 80% 2% / 0.8);
+    --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.45), 0 20px 56px -20px hsl(var(--primary) / 0.5);
+
+    --aurora:
+      radial-gradient(56rem 32rem at 10% -6%, hsl(199 92% 58% / 0.42), transparent 62%),
+      radial-gradient(48rem 28rem at 94% 6%, hsl(286 88% 66% / 0.34), transparent 60%),
+      radial-gradient(42rem 30rem at 52% 104%, hsl(168 84% 54% / 0.26), transparent 64%);
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    /* The aurora is fixed so scrolling feels like moving through the light. */
+    background-image: var(--aurora);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Theme transitions are opt-in per property: transitioning `all` on every node
+     makes a theme swap feel laggy on long feeds. */
+  body,
+  body * {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-duration: 260ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  ::selection {
+    background-color: hsl(var(--primary) / 0.35);
+    color: hsl(var(--fg));
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2;
+    --tw-ring-offset-color: hsl(var(--bg));
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border-strong) / 0.8) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border-strong) / 0.7);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--border-strong));
+  }
+
+  /* Respect the OS setting: kill motion, keep meaning. */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      /* `animation: none` rather than a near-zero duration: libraries that gate
+         unmounting on `animationend` (Radix Presence) then see no animation and
+         tear down immediately, instead of waiting for an event that never fires
+         and leaving a closed menu mounted at opacity 0. */
+      animation: none !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+
+    /* Without its sweep the sheen would sit frozen across the block. */
+    .skeleton::after {
+      display: none;
+    }
+  }
+}
+
+@layer components {
+  /* The one true panel. Opaque in Midnight/Paper, frosted in Glass. */
+  .panel {
+    background-color: hsl(var(--surface) / var(--surface-alpha));
+    border: 1px solid hsl(var(--border) / var(--border-alpha));
+    backdrop-filter: blur(var(--blur-panel)) saturate(var(--panel-saturate));
+    -webkit-backdrop-filter: blur(var(--blur-panel)) saturate(var(--panel-saturate));
+  }
+
+  .panel-raised {
+    background-color: hsl(var(--surface-raised) / var(--surface-alpha));
+    border: 1px solid hsl(var(--border) / var(--border-alpha));
+    backdrop-filter: blur(var(--blur-panel)) saturate(var(--panel-saturate));
+    -webkit-backdrop-filter: blur(var(--blur-panel)) saturate(var(--panel-saturate));
+  }
+
+  /* Sticky nav / bottom bar: always blurred, alpha tuned per theme. */
+  .nav-surface {
+    background-color: hsl(var(--surface) / var(--nav-alpha));
+    backdrop-filter: blur(var(--blur-nav)) saturate(150%);
+    -webkit-backdrop-filter: blur(var(--blur-nav)) saturate(150%);
+  }
+
+  /* Skeletons: a sheen that sweeps a card-shaped block. */
+  .skeleton {
+    @apply relative overflow-hidden rounded-control;
+    background-color: hsl(var(--surface-raised) / calc(var(--surface-alpha) * 0.9));
+  }
+
+  .skeleton::after {
+    @apply absolute inset-0 animate-shimmer bg-sheen content-[''];
+  }
+
+  /* Gradient hairline used to separate hero sections without a hard rule. */
+  .hairline {
+    background-image: linear-gradient(
+      to right,
+      transparent,
+      hsl(var(--border-strong) / 0.9) 18%,
+      hsl(var(--border-strong) / 0.9) 82%,
+      transparent
+    );
+  }
+
+  .brand-gradient {
+    background-image: linear-gradient(115deg, hsl(var(--primary)), hsl(var(--accent)));
+  }
+
+  .brand-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(115deg, hsl(var(--fg)), hsl(var(--primary)) 60%, hsl(var(--accent)));
+  }
+}
+
+@layer utilities {
+  /* Horizontal chip rails: swipeable, snapped, no visible scrollbar. */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .fade-edge-x {
+    mask-image: linear-gradient(to right, transparent, black 2.5%, black 97.5%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 2.5%, black 97.5%, transparent);
+  }
+
+  /* Grid rows that let a featured card span two rows cleanly. */
+  .grid-dense {
+    grid-auto-flow: dense;
+  }
+
+  .text-pretty {
+    text-wrap: pretty;
+  }
+}

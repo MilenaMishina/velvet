@@ -1,0 +1,114 @@
+/** Small HTML-parsing helpers for the scraper (regex-based, no dependencies). */
+
+const DEFAULT_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
+
+/** Fetch a page as text with a browser UA and a hard timeout. */
+export async function fetchPage(url: string, timeoutMs = 15_000): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': DEFAULT_UA,
+        Accept: 'text/html,application/xhtml+xml',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      redirect: 'follow',
+      cache: 'no-store',
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
+    return await response.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  hellip: '…',
+  mdash: '—',
+  ndash: '–',
+  rsquo: '’',
+  lsquo: '‘',
+  ldquo: '“',
+  rdquo: '”',
+};
+
+export function decodeEntities(input: string): string {
+  return input
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
+    .replace(/&([a-z]+);/gi, (match, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? match);
+}
+
+export function stripTags(html: string): string {
+  return decodeEntities(html.replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim();
+}
+
+/** Extract an attribute value from a raw tag string. */
+export function tagAttr(tag: string, attr: string): string | null {
+  const match = tag.match(new RegExp(`${attr}\\s*=\\s*["']([^"']*)["']`, 'i'));
+  return match ? decodeEntities(match[1] ?? '') : null;
+}
+
+/** First <meta name/property="x" content="y"> match. */
+export function metaContent(html: string, name: string): string | null {
+  const match = html.match(
+    new RegExp(`<meta[^>]*(?:name|property)=["']${name}["'][^>]*content=["']([^"']*)["']`, 'i'),
+  ) ?? html.match(
+    new RegExp(`<meta[^>]*content=["']([^"']*)["'][^>]*(?:name|property)=["']${name}["']`, 'i'),
+  );
+  return match ? decodeEntities(match[1] ?? '') : null;
+}
+
+export function pageTitle(html: string): string | null {
+  const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  return match ? stripTags(match[1] ?? '') : null;
+}
+
+/** A ±size window of raw HTML around the first occurrence of `needle`. */
+export function windowAround(html: string, needle: string, size = 1400): string {
+  const index = html.indexOf(needle);
+  if (index === -1) return '';
+  const start = Math.max(0, index - size / 2);
+  return html.slice(start, start + size);
+}
+
+/** Parse "MM:SS" or "HH:MM:SS" into seconds. */
+export function matchDuration(text: string): number | null {
+  const match = text.match(/\b(\d{1,2}):(\d{2})(?::(\d{2}))?\b/);
+  if (!match) return null;
+  if (match[3] !== undefined) return Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+/** "shraddha-kapoor-nude-haider-2014.html" → "Shraddha Kapoor Nude Haider 2014". */
+export function slugToTitle(slug: string): string {
+  return decodeEntities(
+    slug
+      .replace(/\.(html?|php)$/, '')
+      .replace(/[-_+]+/g, ' ')
+      .trim()
+      .replace(/\s+/g, ' '),
+  ).replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function normalizeDurationSeconds(seconds: number | null): number | null {
+  return seconds != null && Number.isFinite(seconds) && seconds > 0 ? Math.floor(seconds) : null;
+}
+
+/** Resolve a possibly-relative URL against a base. */
+export function absoluteUrl(url: string, base: string): string {
+  try {
+    return new URL(url, base).toString();
+  } catch {
+    return url;
+  }
+}
