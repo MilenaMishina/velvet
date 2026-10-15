@@ -3,12 +3,12 @@ import type { Metadata } from 'next';
 import { AdminDashboard } from '@/components/admin/admin-dashboard';
 import { AdminLogin } from '@/components/admin/admin-login';
 import { isAdminRequest } from '@/lib/tube/admin';
+import { adminUserRows, countUsers } from '@/lib/auth';
 import {
   adminRecentComments,
   adminRecentVideos,
   adminSourceRows,
   adminStats,
-  adminUserRows,
   getSettings,
   recentSyncRuns,
   visitorStats,
@@ -36,9 +36,13 @@ export default async function AdminPage() {
 
   const settings = getSettings(['auto_sync_minutes', 'hide_link_only', 'site_notice']);
 
+  // Accounts are read from Supabase while every count beside them is local, so the two
+  // reads overlap instead of queueing.
+  const [accounts, accountCount] = await Promise.all([adminUserRows(100), countUsers()]);
+
   return (
     <AdminDashboard
-      stats={adminStats()}
+      stats={{ ...adminStats(), users: accountCount.ok ? accountCount.data : 0 }}
       sources={adminSourceRows()}
       runs={recentSyncRuns(10)}
       videos={adminRecentVideos(24).map((video) => ({
@@ -65,7 +69,8 @@ export default async function AdminPage() {
         createdAt: comment.createdAt,
         videoTitle: comment.videoTitle,
       }))}
-      users={adminUserRows(100)}
+      users={accounts.ok ? accounts.data : []}
+      accountsError={accounts.ok ? undefined : accounts.error}
       visitors={visitorStats()}
       settings={{
         auto_sync_minutes: settings.auto_sync_minutes ?? '',

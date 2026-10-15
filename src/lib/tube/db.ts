@@ -31,6 +31,13 @@ const COLUMN_MIGRATIONS = [
   // NULL = not pinned. A timestamp rather than a flag so the home page can keep
   // pins in the order they were made instead of an arbitrary one.
   'ALTER TABLE videos ADD COLUMN pinned_at TEXT',
+  'ALTER TABLE comments ADD COLUMN author_name TEXT',
+  // One-time backfill for comments written before names were stored on the row. On a
+  // database that never had a users table this fails harmlessly, like every other
+  // migration here, because there is nothing to backfill.
+  `UPDATE comments SET author_name = COALESCE(
+     (SELECT u.display_name FROM users u WHERE u.id = comments.user_id), 'Deleted account')
+   WHERE author_name IS NULL`,
 ];
 
 export function getDb(): DatabaseSync {
@@ -80,31 +87,31 @@ CREATE TABLE IF NOT EXISTS sources (
   aspect_ratio REAL
 );
 
--- Accounts. Self-hosted on purpose: the whole catalogue already lives in a local
--- SQLite file, so there is no third party to introduce for a login form.
-CREATE TABLE IF NOT EXISTS users (
-  id TEXT PRIMARY KEY,
-  email TEXT NOT NULL UNIQUE,
-  display_name TEXT NOT NULL,
-  password_hash TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'member',
-  created_at TEXT NOT NULL
-);
-
--- Sessions are rows, not signed tokens, so a logout or a password change really
--- ends every session instead of waiting for a cookie to expire.
-CREATE TABLE IF NOT EXISTS sessions (
+-- Sessions are rows, not signed tokens, so a logout really ends a session instead
+-- of waiting out a cookie. Accounts themselves live in Supabase (lib/supabase-auth.ts);
+-- this table caches the identity snapshot belonging to a cookie, so the signed-in
+-- check is one local read instead of a network round trip on every page render. The
+-- snapshot is re-read from Supabase once it goes stale.
+CREATE TABLE IF NOT EXISTS auth_sessions (
   token TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
+  email TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member',
   created_at TEXT NOT NULL,
-  expires_at TEXT NOT NULL
+  expires_at TEXT NOT NULL,
+  synced_at TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions(user_id);
 
 CREATE TABLE IF NOT EXISTS comments (
   id TEXT PRIMARY KEY,
   video_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
+  -- The author's name is stored with the comment rather than joined from an accounts
+  -- table: accounts now live in Supabase, and a name frozen at posting time reads
+  -- better under a comment than one that changes retroactively.
+  author_name TEXT,
   body TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'visible',
   created_at TEXT NOT NULL
@@ -687,89 +694,86 @@ export function recentSyncRuns(limit = 10): import('./models').SyncRunSummary[] 
 
 // ── Accounts, sessions, comments, views ──────────────────────────────────────
 
-export interface TubeUser {
-  id: string;
+/**
+ * The identity snapshot attached to a session cookie.
+ *
+ * Accounts live in Supabase, so this is a cache and never the source of truth: it
+ * makes the common question (is anyone signed in, and who) a local read. `syncedAt`
+ * decides when the real account has to be re-read.
+ */
+export interface AuthSessionRow {
+  token: string;
+  userId: string;
   email: string;
   displayName: string;
   role: 'member' | 'admin';
   createdAt: string;
+  expiresAt: string;
+  syncedAt: string;
 }
 
-function rowToUser(row: Record<string, unknown>): TubeUser {
+function rowToAuthSession(row: Record<string, unknown>): AuthSessionRow {
   return {
-    id: String(row.id),
+    token: String(row.token),
+    userId: String(row.user_id),
     email: String(row.email),
     displayName: String(row.display_name),
     role: String(row.role) === 'admin' ? 'admin' : 'member',
     createdAt: String(row.created_at),
+    expiresAt: String(row.expires_at),
+    syncedAt: String(row.synced_at),
   };
 }
 
-export function countUsers(): number {
-  const row = getDb().prepare('SELECT COUNT(*) AS n FROM users').get() as { n: number } | undefined;
-  return Number(row?.n ?? 0);
-}
-
-export function getUserById(id: string): TubeUser | null {
-  const row = getDb().prepare('SELECT * FROM users WHERE id = ?').get(id) as Record<string, unknown> | undefined;
-  return row ? rowToUser(row) : null;
-}
-
-/** Includes the stored hash — only the auth layer should call this. */
-export function getUserCredentials(email: string): { user: TubeUser; passwordHash: string } | null {
-  const row = getDb().prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase()) as
-    | Record<string, unknown>
-    | undefined;
-  if (!row) return null;
-  return { user: rowToUser(row), passwordHash: String(row.password_hash) };
-}
-
-export function createUser(input: {
-  id: string;
+export function createSession(input: {
+  token: string;
+  userId: string;
   email: string;
   displayName: string;
-  passwordHash: string;
-  role?: 'member' | 'admin';
-}): TubeUser {
-  const createdAt = now();
-  getDb()
-    .prepare('INSERT INTO users (id, email, display_name, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(input.id, input.email.toLowerCase(), input.displayName, input.passwordHash, input.role ?? 'member', createdAt);
-  return { id: input.id, email: input.email.toLowerCase(), displayName: input.displayName, role: input.role ?? 'member', createdAt };
-}
-
-export function listUsers(limit = 50): TubeUser[] {
-  const rows = getDb().prepare('SELECT * FROM users ORDER BY created_at DESC LIMIT ?').all(limit) as Record<string, unknown>[];
-  return rows.map(rowToUser);
-}
-
-export function createSession(token: string, userId: string, ttlDays: number): void {
+  role: 'member' | 'admin';
+  ttlDays: number;
+}): void {
   const created = new Date();
-  const expires = new Date(created.getTime() + ttlDays * 86_400_000);
+  const expires = new Date(created.getTime() + input.ttlDays * 86_400_000);
+  const at = created.toISOString();
   getDb()
-    .prepare('INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
-    .run(token, userId, created.toISOString(), expires.toISOString());
+    .prepare(
+      `INSERT INTO auth_sessions (token, user_id, email, display_name, role, created_at, expires_at, synced_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(input.token, input.userId, input.email, input.displayName, input.role, at, expires.toISOString(), at);
 }
 
 /** Resolve a session token, ignoring (and clearing) anything expired. */
-export function getSessionUser(token: string): TubeUser | null {
-  const row = getDb().prepare('SELECT user_id, expires_at FROM sessions WHERE token = ?').get(token) as
-    | { user_id: string; expires_at: string }
+export function getSession(token: string): AuthSessionRow | null {
+  const row = getDb().prepare('SELECT * FROM auth_sessions WHERE token = ?').get(token) as
+    | Record<string, unknown>
     | undefined;
   if (!row) return null;
-  if (Date.parse(row.expires_at) < Date.now()) {
+  if (Date.parse(String(row.expires_at)) < Date.now()) {
     deleteSession(token);
     return null;
   }
-  return getUserById(String(row.user_id));
+  return rowToAuthSession(row);
+}
+
+/** Record a snapshot that was just re-read from Supabase. */
+export function touchSession(
+  token: string,
+  patch: { email: string; displayName: string; role: 'member' | 'admin' },
+): void {
+  getDb()
+    .prepare('UPDATE auth_sessions SET email = ?, display_name = ?, role = ?, synced_at = ? WHERE token = ?')
+    .run(patch.email, patch.displayName, patch.role, now(), token);
 }
 
 export function deleteSession(token: string): void {
-  getDb().prepare('DELETE FROM sessions WHERE token = ?').run(token);
+  getDb().prepare('DELETE FROM auth_sessions WHERE token = ?').run(token);
 }
 
+/** End every session an account holds — used when the account is deleted. */
 export function deleteUserSessions(userId: string): void {
-  getDb().prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
+  getDb().prepare('DELETE FROM auth_sessions WHERE user_id = ?').run(userId);
 }
 
 export interface TubeComment {
@@ -786,7 +790,9 @@ function rowToComment(row: Record<string, unknown>): TubeComment {
     id: String(row.id),
     videoId: String(row.video_id),
     userId: String(row.user_id),
-    authorName: String(row.display_name ?? 'Deleted account'),
+    authorName: row.author_name == null || String(row.author_name).trim() === ''
+      ? 'Deleted account'
+      : String(row.author_name),
     body: String(row.body),
     createdAt: String(row.created_at),
   };
@@ -795,10 +801,9 @@ function rowToComment(row: Record<string, unknown>): TubeComment {
 export function listComments(videoId: string, limit = 100): TubeComment[] {
   const rows = getDb()
     .prepare(
-      `SELECT c.*, u.display_name FROM comments c
-       LEFT JOIN users u ON u.id = c.user_id
-       WHERE c.video_id = ? AND c.status = 'visible'
-       ORDER BY c.created_at DESC LIMIT ?`,
+      `SELECT * FROM comments
+       WHERE video_id = ? AND status = 'visible'
+       ORDER BY created_at DESC LIMIT ?`,
     )
     .all(videoId, limit) as Record<string, unknown>[];
   return rows.map(rowToComment);
@@ -815,23 +820,25 @@ export function countComments(): number {
   return Number(row?.n ?? 0);
 }
 
-export function addComment(input: { id: string; videoId: string; userId: string; body: string }): TubeComment {
+export function addComment(input: {
+  id: string;
+  videoId: string;
+  userId: string;
+  authorName: string;
+  body: string;
+}): TubeComment {
   const db = getDb();
   const createdAt = now();
-  db.prepare('INSERT INTO comments (id, video_id, user_id, body, created_at) VALUES (?, ?, ?, ?, ?)').run(
-    input.id,
-    input.videoId,
-    input.userId,
-    input.body,
-    createdAt,
-  );
+  const authorName = input.authorName.trim() || 'Someone';
+  db.prepare(
+    'INSERT INTO comments (id, video_id, user_id, author_name, body, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+  ).run(input.id, input.videoId, input.userId, authorName, input.body, createdAt);
   db.prepare('UPDATE videos SET comment_count = comment_count + 1 WHERE id = ?').run(input.videoId);
-  const author = getUserById(input.userId);
   return {
     id: input.id,
     videoId: input.videoId,
     userId: input.userId,
-    authorName: author?.displayName ?? 'Someone',
+    authorName,
     body: input.body,
     createdAt,
   };
@@ -866,9 +873,8 @@ export interface AdminCommentRow extends TubeComment {
 export function adminRecentComments(limit = 40): AdminCommentRow[] {
   const rows = getDb()
     .prepare(
-      `SELECT c.*, u.display_name, COALESCE(v.title, '(removed)') AS video_title
+      `SELECT c.*, COALESCE(v.title, '(removed)') AS video_title
        FROM comments c
-       LEFT JOIN users u ON u.id = c.user_id
        LEFT JOIN videos v ON v.id = c.video_id
        ORDER BY c.created_at DESC LIMIT ?`,
     )
@@ -1039,49 +1045,37 @@ export function purgeDuplicates(): { groups: number; removed: number } {
   return { groups: groups.length, removed };
 }
 
-// ── Accounts (operator view) ────────────────────────────────────────────────
-
-export interface AdminUserRow extends TubeUser {
-  commentCount: number;
-  sessionCount: number;
-  lastLoginAt: string | null;
-}
-
-export function adminUserRows(limit = 100): AdminUserRow[] {
-  const rows = getDb()
-    .prepare(
-      `SELECT u.*,
-              (SELECT COUNT(*) FROM comments c WHERE c.user_id = u.id) AS comment_count,
-              (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id) AS session_count,
-              (SELECT MAX(s.created_at) FROM sessions s WHERE s.user_id = u.id) AS last_login
-       FROM users u ORDER BY u.created_at DESC LIMIT ?`,
-    )
-    .all(limit) as Record<string, unknown>[];
-  return rows.map((row) => ({
-    ...rowToUser(row),
-    commentCount: Number(row.comment_count ?? 0),
-    sessionCount: Number(row.session_count ?? 0),
-    lastLoginAt: row.last_login == null ? null : String(row.last_login),
-  }));
-}
+// ── Account activity (operator view) ────────────────────────────────────────
 
 /**
- * Remove an account and end its sessions.
+ * How many comments each account has written, keyed by account id.
  *
- * Comments are deliberately left behind: they render as "Deleted account", which
- * keeps a thread readable instead of punching holes in it. Deleting the rows would
- * also desync every affected video's comment counter.
+ * Accounts are read from Supabase and this is read locally; the operator table joins
+ * the two in `lib/auth.ts`. Matching on the stored id means a deleted account's
+ * comments simply stop being counted rather than disappearing.
  */
-export function deleteUser(id: string): boolean {
-  const db = getDb();
-  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);
-  const result = db.prepare('DELETE FROM users WHERE id = ?').run(id);
-  return Number(result.changes) > 0;
+export function commentCountsByUser(): Record<string, number> {
+  const rows = getDb()
+    .prepare('SELECT user_id, COUNT(*) AS n FROM comments GROUP BY user_id')
+    .all() as Record<string, unknown>[];
+  const counts: Record<string, number> = {};
+  for (const row of rows) counts[String(row.user_id)] = Number(row.n ?? 0);
+  return counts;
 }
 
-export function setUserRole(id: string, role: 'member' | 'admin'): boolean {
-  const result = getDb().prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id);
-  return Number(result.changes) > 0;
+/** Live session count and most recent sign-in per account, from the local cache. */
+export function sessionStatsByUser(): Record<string, { count: number; lastLoginAt: string | null }> {
+  const rows = getDb()
+    .prepare('SELECT user_id, COUNT(*) AS n, MAX(created_at) AS last FROM auth_sessions GROUP BY user_id')
+    .all() as Record<string, unknown>[];
+  const stats: Record<string, { count: number; lastLoginAt: string | null }> = {};
+  for (const row of rows) {
+    stats[String(row.user_id)] = {
+      count: Number(row.n ?? 0),
+      lastLoginAt: row.last == null ? null : String(row.last),
+    };
+  }
+  return stats;
 }
 
 // ── Visits (user monitoring) ─────────────────────────────────────────────────
@@ -1151,10 +1145,12 @@ export function adminStats(): {
   added24h: number;
   totalViews: number;
   comments: number;
-  users: number;
   sources: number;
   enabledSources: number;
 } {
+  // Deliberately no account count here: accounts live in Supabase, so the operator
+  // page reads that separately and merges it in.
+
   const db = getDb();
   const count = (sql: string): number => {
     const row = db.prepare(sql).get() as { n: number } | undefined;
@@ -1168,7 +1164,6 @@ export function adminStats(): {
     added24h: count("SELECT COUNT(*) AS n FROM videos WHERE scraped_at >= datetime('now', '-1 day')"),
     totalViews: count('SELECT COALESCE(SUM(views), 0) AS n FROM videos'),
     comments: count("SELECT COUNT(*) AS n FROM comments WHERE status = 'visible'"),
-    users: count('SELECT COUNT(*) AS n FROM users'),
     sources: count('SELECT COUNT(*) AS n FROM sources'),
     enabledSources: count('SELECT COUNT(*) AS n FROM sources WHERE enabled = 1'),
   };

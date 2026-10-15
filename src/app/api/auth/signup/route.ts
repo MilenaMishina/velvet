@@ -28,12 +28,15 @@ export async function POST(request: NextRequest) {
   const password = typeof body.password === 'string' ? body.password : '';
   const displayName = typeof body.displayName === 'string' ? body.displayName : undefined;
 
-  const result = registerUser({ email, password, displayName });
+  const result = await registerUser({ email, password, displayName });
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json(
+      { error: result.error },
+      { status: result.status ?? 400, headers: { 'Cache-Control': 'no-store' } },
+    );
   }
 
-  const token = startSession(result.user.id);
+  const token = startSession(result.user);
   const response = NextResponse.json({ data: { user: result.user } }, { headers: { 'Cache-Control': 'no-store' } });
   response.cookies.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,

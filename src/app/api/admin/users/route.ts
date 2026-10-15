@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-import { isSameOriginRequest } from '@/lib/auth';
+import { changeUserRole, findUser, isSameOriginRequest, removeUser } from '@/lib/auth';
 import { isAdminRequest } from '@/lib/tube/admin';
-import { deleteUser, getUserById, setUserRole } from '@/lib/tube/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,15 +27,23 @@ export async function POST(request: NextRequest) {
   const id = typeof body.id === 'string' ? body.id : '';
   const action = typeof body.action === 'string' ? body.action : '';
   if (!id) return NextResponse.json({ error: 'Missing account id.' }, { status: 400 });
-  if (!getUserById(id)) return NextResponse.json({ error: 'Unknown account.' }, { status: 404 });
+
+  // Confirm the account exists before acting, so a stale admin table cannot set a role
+  // on — or "delete" — an id that is already gone.
+  const existing = await findUser(id);
+  if (!existing.ok) return NextResponse.json({ error: existing.error }, { status: 502 });
+  if (!existing.data) return NextResponse.json({ error: 'Unknown account.' }, { status: 404 });
 
   if (action === 'promote' || action === 'demote') {
-    const ok = setUserRole(id, action === 'promote' ? 'admin' : 'member');
-    return NextResponse.json({ ok }, { headers: { 'Cache-Control': 'no-store' } });
+    const changed = await changeUserRole(id, action === 'promote' ? 'admin' : 'member');
+    if (!changed.ok) return NextResponse.json({ error: changed.error }, { status: 502 });
+    return NextResponse.json({ ok: true, user: changed.data }, { headers: { 'Cache-Control': 'no-store' } });
   }
 
   if (action === 'delete') {
-    return NextResponse.json({ ok: deleteUser(id) }, { headers: { 'Cache-Control': 'no-store' } });
+    const removed = await removeUser(id);
+    if (!removed.ok) return NextResponse.json({ error: removed.error }, { status: 502 });
+    return NextResponse.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } });
   }
 
   return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });

@@ -113,6 +113,8 @@ export interface AdminDashboardProps {
   users: AdminAccountRow[];
   visitors: AdminVisitors;
   settings: AdminSettingsValues;
+  /** Set when accounts could not be read, so the panel never implies "no accounts". */
+  accountsError?: string;
 }
 
 /** Small helper so every mutation shares one request/refresh/error path. */
@@ -155,7 +157,7 @@ function useAdminAction() {
 }
 
 export function AdminDashboard(props: AdminDashboardProps) {
-  const { stats, sources, runs, videos, comments, users, visitors, settings } = props;
+  const { stats, sources, runs, videos, comments, users, visitors, settings, accountsError } = props;
   const { run, busy, error, note } = useAdminAction();
   const router = useRouter();
 
@@ -199,7 +201,8 @@ export function AdminDashboard(props: AdminDashboardProps) {
           <p className="text-2xs font-semibold uppercase tracking-wider text-foreground-subtle">Operator</p>
           <h1 className="font-display text-2xl font-bold tracking-[-0.02em] sm:text-3xl">Admin dashboard</h1>
           <p className="mt-1 text-sm text-foreground-muted">
-            Sources, scheduling, settings and moderation — all operating on the local database.
+            Sources, scheduling, settings and moderation run on the local database; accounts
+            live in Supabase.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -660,6 +663,11 @@ export function AdminDashboard(props: AdminDashboardProps) {
       </Section>
 
       <Section title="Accounts" description="Every account, with what it has done and the operator's controls.">
+        {accountsError ? (
+          <p role="alert" className="mb-3 rounded-control bg-danger/12 px-3 py-2 text-xs font-medium text-danger">
+            Accounts could not be read: {accountsError} This table may be incomplete.
+          </p>
+        ) : null}
         <UserTable users={users} />
       </Section>
 

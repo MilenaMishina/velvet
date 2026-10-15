@@ -34,14 +34,14 @@ export function generateMetadata({ params }: { params: { id: string } }): Metada
  * the publisher's own (see `TubePlayer`), and the original page is always linked so
  * the visitor can reach the source and its creator directly.
  */
-export default function SourceVideoPage({ params }: { params: { id: string } }) {
+export default async function SourceVideoPage({ params }: { params: { id: string } }) {
   const video = getVideoById(params.id);
   if (!video) notFound();
 
   // The view is counted by `ViewBeacon` on the client, at most once per viewer per
   // day. Counting during render would mean a reload — or a prefetch — votes again.
   const related = getRelatedVideos(video, 12);
-  const comments = listComments(video.id);
+  const comments = await listComments(video.id);
   const posted = video.publishedAt ?? video.scrapedAt;
 
   return (

@@ -16,7 +16,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({ error: 'Unknown video.' }, { status: 404 });
   }
   return NextResponse.json(
-    { data: { comments: listComments(params.id) } },
+    { data: { comments: await listComments(params.id) } },
     { headers: { 'Cache-Control': 'private, no-store' } },
   );
 }
@@ -55,6 +55,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     );
   }
 
-  const comment = addComment({ id: randomUUID(), videoId: params.id, userId: user.id, body: text });
+  // The author's name is stored on the comment itself: accounts live in Supabase, and
+  // the name a comment was posted under should not change if the account is renamed.
+  const comment = addComment({
+    id: randomUUID(),
+    videoId: params.id,
+    userId: user.id,
+    authorName: user.displayName,
+    body: text,
+  });
   return NextResponse.json({ data: { comment } }, { status: 201, headers: { 'Cache-Control': 'no-store' } });
 }
