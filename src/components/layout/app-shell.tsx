@@ -2,6 +2,7 @@
 
 import { Suspense } from 'react';
 
+import { AdPartnerBand } from '@/components/ads/ad-smartlink';
 import { Navbar, NavbarFallback } from '@/components/layout/navbar';
 import { MobileNav } from '@/components/layout/mobile-nav';
 import { Sidebar, SidebarFallback } from '@/components/layout/sidebar';
@@ -45,6 +46,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="mx-auto max-w-[1980px] px-4 py-6 sm:px-6 lg:px-8">
           <SiteNotice />
           {children}
+          {/* The small wide units have no natural home in a grid, so they close every
+              page together, labelled, rather than being hidden in the feed. */}
+          <AdPartnerBand className="mt-10" />
         </div>
       </main>
 

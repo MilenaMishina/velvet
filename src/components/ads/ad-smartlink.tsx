@@ -1,6 +1,10 @@
+'use client';
+
 import { ArrowUpRight } from 'lucide-react';
 
-import { adsEnabled, smartlink } from '@/lib/ads';
+import { AdSlot } from '@/components/ads/ad-slot';
+import { useAdConfig } from '@/components/ads/ad-config-provider';
+import { SMARTLINK_HREF } from '@/lib/ads';
 import { cn } from '@/lib/utils';
 
 /**
@@ -8,16 +12,17 @@ import { cn } from '@/lib/utils';
  *
  * A hyperlink rather than a slotted unit, so it lives wherever a link belongs. The
  * destination is a sponsor's landing page: it opens in a new tab, carries
- * `rel="nofollow sponsored"` so it is never read as an endorsement from us, and it
- * is labelled, because a link that is paid for and looks like navigation is the one
- * thing visitors have a right to be told about.
+ * `rel="nofollow sponsored"` so it is never read as an endorsement from us, and it is
+ * labelled — a link that is paid for and looks like navigation is the one thing
+ * visitors have a right to be told about.
  */
 export function AdSmartlink({ className }: { className?: string }) {
-  if (!adsEnabled) return null;
+  const config = useAdConfig();
+  if (!config.enabled || !config.pageScripts) return null;
 
   return (
     <a
-      href={smartlink.href}
+      href={SMARTLINK_HREF}
       target="_blank"
       rel="noopener noreferrer nofollow sponsored"
       className={cn(
@@ -26,9 +31,7 @@ export function AdSmartlink({ className }: { className?: string }) {
       )}
     >
       <span className="min-w-0">
-        <span className="block text-2xs font-semibold uppercase tracking-wider text-foreground-subtle">
-          Sponsored
-        </span>
+        <span className="block text-2xs font-semibold uppercase tracking-wider text-foreground-subtle">Sponsored</span>
         <span className="block truncate text-sm font-medium text-foreground-muted group-hover:text-foreground">
           Sponsor offer
         </span>
@@ -38,5 +41,30 @@ export function AdSmartlink({ className }: { className?: string }) {
         className="size-4 shrink-0 text-foreground-subtle transition-colors group-hover:text-primary"
       />
     </a>
+  );
+}
+
+/**
+ * The units the networks issue that fit nowhere else.
+ *
+ * 178×46, 258×46 and 178×18 are link-shaped and only earn where they are actually
+ * seen, so they travel as one labelled band at the end of a page rather than being
+ * scattered into the feed as invisible filler.
+ */
+export function AdPartnerBand({ className }: { className?: string }) {
+  const config = useAdConfig();
+  if (!config.enabled) return null;
+
+  return (
+    <section aria-label="Partner offers" className={cn('panel space-y-3 rounded-card p-4', className)}>
+      <p className="text-center text-2xs font-semibold uppercase tracking-wider text-foreground-subtle">
+        Partner offers
+      </p>
+      <div className="flex flex-wrap items-center justify-center gap-5">
+        <AdSlot placement="band-a" caption={null} />
+        <AdSlot placement="band-b" caption={null} />
+        <AdSlot placement="band-c" caption={null} />
+      </div>
+    </section>
   );
 }

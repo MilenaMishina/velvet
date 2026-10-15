@@ -3,13 +3,15 @@ import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { Inter, Sora } from 'next/font/google';
 
-import { AdPopunder, AdSocialBar } from '@/components/ads/ad-scripts';
+import { AdConfigProvider } from '@/components/ads/ad-config-provider';
+import { AdFloat, AdJuicyLoader, AdPopunder, AdSocialBar } from '@/components/ads/ad-scripts';
 import { AppShell } from '@/components/layout/app-shell';
 import { Providers } from '@/components/providers/providers';
 import { ThemeScript } from '@/components/providers/theme-script';
-import { JUICYADS_VERIFICATION } from '@/lib/ads';
+import { JUICYADS_VERIFICATION, adConfigFromSettings } from '@/lib/ads';
 import { publicEnv } from '@/lib/env';
 import { DEFAULT_THEME, themeDefinition } from '@/lib/theme';
+import { adSettingValues } from '@/lib/tube/db';
 
 /**
  * Variable fonts, self-hosted by `next/font` at build time — no runtime request to
@@ -52,8 +54,8 @@ export const metadata: Metadata = {
     // real problem for a site aimed at an adult audience, not a legal formality.
     rating: 'RTA-5042-1996-1400-1577-RTA',
     // Ad-network site verification. Must be a static tag in the server-rendered
-    // <head> exactly as issued — the network's crawler does not run JavaScript,
-    // so anything injected client-side would never be seen.
+    // <head> exactly as issued — JuicyAds' crawler does not run JavaScript, so
+    // anything injected client-side would never be seen.
     'juicyads-site-verification': JUICYADS_VERIFICATION,
   },
 };
@@ -65,11 +67,18 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Read once here and handed down, so a request cannot render a slot decided by one
+  // set of switches and a page script decided by another.
+  const adConfig = adConfigFromSettings(adSettingValues());
+
   return (
     <html lang="en" data-theme={DEFAULT_THEME} suppressHydrationWarning className={`${sans.variable} ${display.variable}`}>
       <head>
         <ThemeScript />
-        <AdPopunder />
+        {/* Both loaders live in the head: the zone loader has to be present before any
+            slot asks for a fill, and the popunder is expected there by its network. */}
+        <AdJuicyLoader config={adConfig} />
+        <AdPopunder config={adConfig} />
       </head>
       <body>
         <a
@@ -78,10 +87,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Skip to content
         </a>
-        <Providers>
-          <AppShell>{children}</AppShell>
-        </Providers>
-        <AdSocialBar />
+        <AdConfigProvider value={adConfig}>
+          <Providers>
+            <AppShell>{children}</AppShell>
+          </Providers>
+        </AdConfigProvider>
+        <AdFloat config={adConfig} />
+        <AdSocialBar config={adConfig} />
       </body>
     </html>
   );

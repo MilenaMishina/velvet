@@ -2,7 +2,7 @@ import { Flame, Pin, Sparkles, TrendingUp } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { AdLeadStrip } from '@/components/ads/ad-banner';
+import { AdLeadStrip, AdSlot } from '@/components/ads/ad-slot';
 import { AdNative } from '@/components/ads/ad-native';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { TubeFeed } from '@/components/tube/tube-feed';
@@ -110,6 +110,10 @@ export default function HomePage() {
 
       <AdLeadStrip />
 
+      {/* The widest unit the network issues, and the only place on the site where a
+          908px banner has the room to be shown at its own size. */}
+      <AdSlot placement="home-super" />
+
       {pinned.length > 0 ? (
         <section aria-labelledby="pinned-heading" className="space-y-5">
           <div className="flex flex-wrap items-center gap-2">
@@ -122,6 +126,17 @@ export default function HomePage() {
           <TubeGrid videos={pinned} />
         </section>
       ) : null}
+
+      {/* Sponsor row: the three units whose shape is wrong for a card grid. */}
+      <section aria-label="Sponsors" className="panel rounded-card p-4">
+        <div className="flex flex-wrap items-center justify-center gap-6">
+          <AdSlot placement="home-square" />
+          <AdSlot placement="home-strip" />
+          <AdSlot placement="poster-square" />
+        </div>
+      </section>
+
+      <AdSlot placement="feed-rectangle" />
 
       <AdNative />
 

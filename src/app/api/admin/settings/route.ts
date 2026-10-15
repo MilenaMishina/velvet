@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+import { AD_SETTING_KEYS } from '@/lib/ads';
 import { isSameOriginRequest } from '@/lib/auth';
 import { isAdminRequest } from '@/lib/tube/admin';
 import { setSetting } from '@/lib/tube/db';
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic';
  * An allow-list, not a free-for-all: without it a typo in a key name would silently
  * create a setting nothing reads, and the panel would look like it worked.
  */
-const EDITABLE = new Set(['auto_sync_minutes', 'hide_link_only', 'site_notice']);
+const EDITABLE = new Set(['auto_sync_minutes', 'hide_link_only', 'site_notice', ...AD_SETTING_KEYS]);
 
 /** POST /api/admin/settings — update one runtime setting. */
 export async function POST(request: NextRequest) {

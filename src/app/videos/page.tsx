@@ -2,7 +2,7 @@ import { Clapperboard, Globe2, Search } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { AdLeadStrip } from '@/components/ads/ad-banner';
+import { AdLeadStrip, AdSlot } from '@/components/ads/ad-slot';
 import { AdNative } from '@/components/ads/ad-native';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { PageHeader } from '@/components/layout/page-header';
@@ -126,6 +126,10 @@ export default function SourceVideosPage({
           ))}
         </ul>
       </div>
+
+      <AdSlot placement="feed-billboard" />
+
+      <AdSlot placement="feed-rectangle" />
 
       <AdNative />
 

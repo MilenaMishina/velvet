@@ -1,5 +1,6 @@
 import { ExternalLink, MonitorPlay } from 'lucide-react';
 
+import { AdInVideo } from '@/components/ads/ad-invideo';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { TubeVideo } from '@/lib/tube/models';
@@ -34,6 +35,7 @@ export function TubePlayer({ video }: { video: TubeVideo }) {
           loading="lazy"
           className="absolute inset-0 size-full border-0"
         />
+        <AdInVideo />
       </div>
     );
   }
@@ -49,6 +51,7 @@ export function TubePlayer({ video }: { video: TubeVideo }) {
           preload="metadata"
           className="absolute inset-0 size-full"
         />
+        <AdInVideo />
       </div>
     );
   }

@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
+import { AD_SETTING_KEYS } from '@/lib/ads';
 import type { TubeEmbedType, TubeSort, TubeStatus, TubeVideo } from './models';
 
 /**
@@ -31,6 +32,10 @@ const COLUMN_MIGRATIONS = [
   // NULL = not pinned. A timestamp rather than a flag so the home page can keep
   // pins in the order they were made instead of an arbitrary one.
   'ALTER TABLE videos ADD COLUMN pinned_at TEXT',
+  // When we last re-read a row's own page looking for a player. Without it, a page
+  // that is permanently behind a bot challenge would be re-fetched on every visit
+  // and on every repair run, forever.
+  'ALTER TABLE videos ADD COLUMN resolve_attempted_at TEXT',
   'ALTER TABLE comments ADD COLUMN author_name TEXT',
   // One-time backfill for comments written before names were stored on the row. On a
   // database that never had a users table this fails harmlessly, like every other
@@ -1134,6 +1139,66 @@ export function getSettings(keys: string[]): Record<string, string> {
     if (value != null) out[key] = value;
   }
   return out;
+}
+
+/**
+ * The ad switches, or nothing at all.
+ *
+ * Unlike `getSettings` this never brings the database into existence. Any page that
+ * is prerendered during a build runs the root layout, and creating `data/tube.db` at
+ * that moment would leave the boot script's seeder with nothing to copy into on a
+ * fresh volume. Missing values mean "use the defaults", which is also what a brand-new
+ * deployment should serve.
+ */
+export function adSettingValues(): Record<string, string> {
+  if (!existsSync(DB_FILE)) return {};
+  return getSettings([...AD_SETTING_KEYS]);
+}
+
+/**
+ * The repair queue: published rows with nothing to play.
+ *
+ * A row lands here when its source page exposed no player at scrape time. It is not
+ * lost — the sync retries it, and so does a repair run (see `lib/tube/resolve.ts`).
+ * An attempt is stamped so a page that is permanently bot-challenged is retried once
+ * a day rather than on every visit.
+ */
+export function listUnplayableVideos(limit = 25, retryAfterHours = 24): TubeVideo[] {
+  const cutoff = new Date(Date.now() - retryAfterHours * 60 * 60 * 1000).toISOString();
+  const rows = getDb()
+    .prepare(
+      `${VIDEO_SELECT}
+       WHERE v.status = 'published'
+         AND (v.embed_url IS NULL OR v.embed_url = '')
+         AND (v.resolve_attempted_at IS NULL OR v.resolve_attempted_at < ?)
+       ORDER BY (v.resolve_attempted_at IS NULL) DESC, v.resolve_attempted_at ASC, v.scraped_at DESC
+       LIMIT ?`,
+    )
+    .all(cutoff, limit) as Array<Record<string, unknown>>;
+  return rows.map((row) => rowToVideo(row, String(row.source_name)));
+}
+
+/** How many published rows still have no player at all. */
+export function countUnplayableVideos(): number {
+  const row = getDb()
+    .prepare("SELECT COUNT(*) AS n FROM videos WHERE status = 'published' AND (embed_url IS NULL OR embed_url = '')")
+    .get() as { n: number } | undefined;
+  return Number(row?.n ?? 0);
+}
+
+/** When this row's page was last read for a player, if ever. */
+export function resolveAttemptAt(id: string): string | null {
+  const row = getDb().prepare('SELECT resolve_attempted_at FROM videos WHERE id = ?').get(id) as
+    | { resolve_attempted_at: string | null }
+    | undefined;
+  return row?.resolve_attempted_at ?? null;
+}
+
+/** Store a freshly resolved player, and stamp the attempt either way. */
+export function setVideoEmbed(id: string, embedUrl: string | null, embedType: TubeEmbedType): void {
+  getDb()
+    .prepare('UPDATE videos SET embed_url = ?, embed_type = ?, resolve_attempted_at = ? WHERE id = ?')
+    .run(embedUrl, embedType, new Date().toISOString(), id);
 }
 
 /** Everything the admin dashboard headlines, in one round of queries. */

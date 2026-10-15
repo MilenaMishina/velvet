@@ -17,6 +17,7 @@ import {
   Save,
   Trash2,
   Users,
+  Wrench,
   Zap,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -27,6 +28,15 @@ import { UserTable, type AdminAccountRow } from '@/components/admin/user-table';
 import { VideoEditor, type EditableVideo } from '@/components/admin/video-editor';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  ADSTERRA_UNITS,
+  AD_PLACEMENTS,
+  AD_SETTING_KEYS,
+  JUICY_FLOAT_ZONE,
+  JUICY_NATIVE_ZONE,
+  JUICY_ZONES,
+  type AdSettingKey,
+} from '@/lib/ads';
 import { formatCompactNumber, formatExactNumber, formatRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -102,6 +112,8 @@ export interface AdminSettingsValues {
   auto_sync_minutes: string;
   hide_link_only: string;
   site_notice: string;
+  /** Ad switches, keyed by setting name. Empty means "unset", which is "on". */
+  ads: Record<AdSettingKey, string>;
 }
 
 export interface AdminDashboardProps {
@@ -168,6 +180,16 @@ export function AdminDashboard(props: AdminDashboardProps) {
 
   const [autoSync, setAutoSync] = React.useState(settings.auto_sync_minutes || '120');
   const [notice, setNotice] = React.useState(settings.site_notice || '');
+  // An unset switch is an on switch, which is what the server-side default does too.
+  const [ads, setAds] = React.useState<Record<AdSettingKey, boolean>>(
+    () => Object.fromEntries(AD_SETTING_KEYS.map((key) => [key, settings.ads[key] !== '0'])) as Record<AdSettingKey, boolean>,
+  );
+
+  const toggleAd = (key: AdSettingKey) => {
+    const next = !ads[key];
+    setAds((current) => ({ ...current, [key]: next }));
+    void run(`ad-${key}`, '/api/admin/settings', { key, value: next ? '1' : '0' }, `${next ? 'Enabled' : 'Disabled'} ${key.replace('ads_', '')}.`);
+  };
 
   const [lastRun, setLastRun] = React.useState<string | null>(null);
   const [editing, setEditing] = React.useState<EditableVideo | 'new' | null>(null);
@@ -186,6 +208,20 @@ export function AdminDashboard(props: AdminDashboardProps) {
     )) as { added?: number; updated?: number; errors?: number } | null;
     if (data) {
       setLastRun(`added ${data.added ?? 0} · updated ${data.updated ?? 0} · errors ${data.errors ?? 0}`);
+    }
+  };
+
+  /** Re-read the source pages of videos we could only link to, one batch at a time. */
+  const repairPlayers = async () => {
+    const data = (await run('repair', '/api/admin/repair', { limit: 25 })) as {
+      attempted?: number;
+      resolved?: number;
+      remaining?: number;
+    } | null;
+    if (data) {
+      setLastRun(
+        `players repaired ${data.resolved ?? 0}/${data.attempted ?? 0} · ${data.remaining ?? 0} still link-only`,
+      );
     }
   };
 
@@ -252,6 +288,10 @@ export function AdminDashboard(props: AdminDashboardProps) {
                 {busy === 'backfill' ? <Loader2 className="animate-spin" aria-hidden /> : <Zap aria-hidden />}
                 Deep backfill
               </Button>
+              <Button variant="outline" size="md" pill disabled={busy !== null} onClick={() => void repairPlayers()}>
+                {busy === 'repair' ? <Loader2 className="animate-spin" aria-hidden /> : <Wrench aria-hidden />}
+                Repair players
+              </Button>
             </div>
 
             <div>
@@ -286,7 +326,13 @@ export function AdminDashboard(props: AdminDashboardProps) {
 
             <p className="text-xs text-foreground-subtle">
               A backfill of 60 pages × 900 fetches is roughly 1200 videos and takes minutes; it is safe to re-run, because
-              videos are de-duplicated by their page URL. {lastRun ? <strong className="text-foreground">Last run: {lastRun}.</strong> : null}
+              videos are de-duplicated by their page URL. <strong className="text-foreground">Repair players</strong> re-reads
+              the source page of videos we could only link to (25 per press) and stores any player it finds, so a row the sync
+              could not play still ends up playable.{' '}
+              {stats.totalVideos > stats.playableVideos ? (
+                <span>{stats.totalVideos - stats.playableVideos} rows are link-only right now.</span>
+              ) : null}{' '}
+              {lastRun ? <strong className="text-foreground">Last run: {lastRun}.</strong> : null}
             </p>
           </div>
         </div>
@@ -455,6 +501,103 @@ export function AdminDashboard(props: AdminDashboardProps) {
             </div>
           </div>
         </div>
+      </Section>
+
+      <Section
+        title="Ads"
+        description="Two networks, layered: JuicyAds fills every zone, and an Adsterra unit takes a slot only where the JuicyAds one did not render. Changes apply to the next page render."
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Toggle
+            label="Ads on the site"
+            description="Master switch: every unit, tag and script."
+            on={ads.ads_enabled}
+            disabled={busy !== null}
+            onChange={() => toggleAd('ads_enabled')}
+          />
+          <Toggle
+            label="JuicyAds primary"
+            description="Off hands every slot straight to Adsterra, with no zone request at all."
+            on={ads.ads_juicyads}
+            disabled={busy !== null}
+            onChange={() => toggleAd('ads_juicyads')}
+          />
+          <Toggle
+            label="Adsterra stand-in"
+            description="Rendered in a slot only when its JuicyAds zone fails or is blocked."
+            on={ads.ads_adsterra_fallback}
+            disabled={busy !== null}
+            onChange={() => toggleAd('ads_adsterra_fallback')}
+          />
+          <Toggle
+            label="In-feed native"
+            description={`Sponsored cards in the feed — JuicyAds zone ${JUICY_NATIVE_ZONE}.`}
+            on={ads.ads_native}
+            disabled={busy !== null}
+            onChange={() => toggleAd('ads_native')}
+          />
+          <Toggle
+            label="In-video overlay"
+            description={`The unit pinned over the player on a watch page — zone ${JUICY_ZONES.inVideo.id}.`}
+            on={ads.ads_invideo}
+            disabled={busy !== null}
+            onChange={() => toggleAd('ads_invideo')}
+          />
+          <Toggle
+            label="Float ad"
+            description={`JuicyAds float — zone ${JUICY_FLOAT_ZONE}.`}
+            on={ads.ads_float}
+            disabled={busy !== null}
+            onChange={() => toggleAd('ads_float')}
+          />
+          <Toggle
+            label="Popunder and social bar"
+            description="Adsterra's page-level scripts, separate from the JuicyAds zones."
+            on={ads.ads_page_scripts}
+            disabled={busy !== null}
+            onChange={() => toggleAd('ads_page_scripts')}
+          />
+        </div>
+
+        <details className="panel rounded-card p-3">
+          <summary className="cursor-pointer text-2xs font-semibold uppercase tracking-wider text-foreground-subtle">
+            Zone map — every unit and where it lives
+          </summary>
+          <p className="pt-2 text-xs text-foreground-muted">
+            A JuicyAds zone owns its element by id, so no zone appears twice on one page. The stand-in is sized to the
+            space the slot occupies, never larger.
+          </p>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[34rem] border-collapse text-left text-sm">
+              <thead>
+                <tr className="text-2xs uppercase tracking-wider text-foreground-subtle">
+                  <th className="pb-2 font-semibold">Slots</th>
+                  <th className="pb-2 font-semibold">JuicyAds zone</th>
+                  <th className="pb-2 font-semibold">Size</th>
+                  <th className="pb-2 font-semibold">Stand-in</th>
+                </tr>
+              </thead>
+              <tbody className="text-xs">
+                {Object.entries(AD_PLACEMENTS).map(([name, slot]) => (
+                  <tr key={name} className="border-t border-border">
+                    <td className="py-2 pr-3 font-medium">{name}</td>
+                    <td className="py-2 pr-3 tabular-nums text-foreground-muted">{slot.juicy ? slot.juicy.id : '—'}</td>
+                    <td className="py-2 pr-3 tabular-nums text-foreground-subtle">
+                      {slot.juicy ? `${slot.juicy.width}×${slot.juicy.height}` : '—'}
+                    </td>
+                    <td className="py-2 pr-3 text-foreground-subtle">
+                      {slot.fallback ? `${ADSTERRA_UNITS[slot.fallback].label} Adsterra` : 'none'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="pt-3 text-2xs text-foreground-subtle">
+            Page-level units outside this map: float {JUICY_FLOAT_ZONE} and native {JUICY_NATIVE_ZONE}, both with
+            Adsterra stand-ins of their own.
+          </p>
+        </details>
       </Section>
 
       <Section
@@ -705,6 +848,51 @@ function Stat({
       </p>
       {hint ? <p className="mt-0.5 text-2xs text-foreground-subtle">{hint}</p> : null}
     </div>
+  );
+}
+
+/** One ad switch. A switch rather than a checkbox so its state survives a glance. */
+function Toggle({
+  label,
+  description,
+  on,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  description?: string;
+  on: boolean;
+  disabled?: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      disabled={disabled}
+      onClick={onChange}
+      className="panel flex w-full items-start justify-between gap-3 rounded-control px-3 py-2.5 text-left text-sm transition-colors hover:border-border-strong disabled:opacity-60"
+    >
+      <span className="min-w-0">
+        <span className="block font-medium">{label}</span>
+        {description ? <span className="block text-2xs leading-relaxed text-foreground-subtle">{description}</span> : null}
+      </span>
+      <span
+        aria-hidden
+        className={cn(
+          'relative mt-0.5 h-6 w-11 shrink-0 rounded-pill transition-colors',
+          on ? 'bg-primary' : 'bg-surface-raised',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute top-0.5 size-5 rounded-full bg-background transition-transform',
+            on ? 'translate-x-[1.4rem]' : 'translate-x-0.5',
+          )}
+        />
+      </span>
+    </button>
   );
 }
 

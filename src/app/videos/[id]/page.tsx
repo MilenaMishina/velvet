@@ -3,7 +3,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { AdBanner, AdLeadStrip } from '@/components/ads/ad-banner';
+import { AdLeadStrip, AdSlot } from '@/components/ads/ad-slot';
+import { AdNative } from '@/components/ads/ad-native';
 import { PageHeader, SectionHeading } from '@/components/layout/page-header';
 import { TubeGrid } from '@/components/tube/tube-grid';
 import { TubePlayer, TubePlayerMeta } from '@/components/tube/tube-player';
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { formatAbsoluteDate, formatDuration, formatRelativeTime } from '@/lib/format';
 import { routes } from '@/lib/routes';
 import { getRelatedVideos, getVideoById, listComments } from '@/lib/tube/db';
+import { resolveVideoPlayer } from '@/lib/tube/resolve';
 import { VideoComments } from '@/components/tube/video-comments';
 import { ViewBeacon } from '@/components/tube/view-beacon';
 import { cn } from '@/lib/utils';
@@ -36,8 +38,15 @@ export function generateMetadata({ params }: { params: { id: string } }): Metada
  * the visitor can reach the source and its creator directly.
  */
 export default async function SourceVideoPage({ params }: { params: { id: string } }) {
-  const video = getVideoById(params.id);
-  if (!video) notFound();
+  const stored = getVideoById(params.id);
+  if (!stored) notFound();
+
+  // Nothing playable was stored for this row: read the source page once on the
+  // visitor's behalf and keep whatever it now offers, so the next visit is instant.
+  // Bounded and rate-limited inside the resolver, so a page that is permanently
+  // challenged costs one request per window rather than one per visit.
+  const resolved = stored.embedType === 'link' ? await resolveVideoPlayer(stored) : null;
+  const video = resolved?.video ?? stored;
 
   // The view is counted by `ViewBeacon` on the client, at most once per viewer per
   // day. Counting during render would mean a reload — or a prefetch — votes again.
@@ -52,9 +61,9 @@ export default async function SourceVideoPage({ params }: { params: { id: string
       <TubePlayer video={video} />
       <TubePlayerMeta video={video} />
 
-      {/* Full-width unit between the player and the metadata: the visitor has
-          already committed to this video, so it interrupts nothing. */}
-      <AdBanner size="billboard" />
+      {/* Full-width unit between the player and the metadata: the visitor has already
+          committed to this video, so it interrupts nothing. */}
+      <AdSlot placement="watch-billboard" />
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0 space-y-5">
@@ -137,10 +146,12 @@ export default async function SourceVideoPage({ params }: { params: { id: string
           </div>
 
           <VideoComments videoId={video.id} initialComments={comments} />
+
+          <AdNative />
         </div>
 
         <aside className={cn('min-w-0 space-y-4')}>
-          <AdBanner size="rectangle" />
+          <AdSlot placement="watch-rectangle" />
 
           <SectionHeading
             title="More from this source"
@@ -153,6 +164,8 @@ export default async function SourceVideoPage({ params }: { params: { id: string
               Nothing else indexed from {video.sourceName} yet.
             </p>
           )}
+
+          <AdSlot placement="watch-promo" />
         </aside>
       </div>
     </div>

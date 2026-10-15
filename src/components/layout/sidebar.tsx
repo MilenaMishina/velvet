@@ -4,7 +4,7 @@ import { Globe2, Home, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 
-import { AdBanner } from '@/components/ads/ad-banner';
+import { AdSlot } from '@/components/ads/ad-slot';
 import { AdSmartlink } from '@/components/ads/ad-smartlink';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -110,13 +110,13 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
           </ul>
         </div>
 
-        {/* The rail is the one column that stays in view while the feed scrolls, so
-            it carries the two vertical units. Both are dropped in the collapsed rail,
+        {/* The rail is the one column that stays in view while the feed scrolls, so it
+            carries the two vertical units. Both are dropped in the collapsed rail,
             which is narrower than the ads themselves. */}
         {collapsed ? null : (
-          <div className="space-y-3 px-3">
-            <AdBanner size="halfpage" />
-            <AdBanner size="skyscraper" />
+          <div className="space-y-4 px-3">
+            <AdSlot placement="rail-tall" />
+            <AdSlot placement="rail-tile" />
             <AdSmartlink />
           </div>
         )}

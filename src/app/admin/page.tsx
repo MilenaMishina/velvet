@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 
 import { AdminDashboard } from '@/components/admin/admin-dashboard';
 import { AdminLogin } from '@/components/admin/admin-login';
+import { AD_SETTING_KEYS, type AdSettingKey } from '@/lib/ads';
 import { isAdminRequest } from '@/lib/tube/admin';
 import { adminUserRows, countUsers } from '@/lib/auth';
 import {
@@ -34,7 +35,7 @@ export const dynamic = 'force-dynamic';
 export default async function AdminPage() {
   if (!(await isAdminRequest())) return <AdminLogin />;
 
-  const settings = getSettings(['auto_sync_minutes', 'hide_link_only', 'site_notice']);
+  const settings = getSettings(['auto_sync_minutes', 'hide_link_only', 'site_notice', ...AD_SETTING_KEYS]);
 
   // Accounts are read from Supabase while every count beside them is local, so the two
   // reads overlap instead of queueing.
@@ -76,6 +77,10 @@ export default async function AdminPage() {
         auto_sync_minutes: settings.auto_sync_minutes ?? '',
         hide_link_only: settings.hide_link_only ?? '0',
         site_notice: settings.site_notice ?? '',
+        ads: Object.fromEntries(AD_SETTING_KEYS.map((key) => [key, settings[key] ?? ''])) as Record<
+          AdSettingKey,
+          string
+        >,
       }}
     />
   );
