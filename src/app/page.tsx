@@ -2,6 +2,8 @@ import { Flame, Pin, Sparkles, TrendingUp } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { AdLeadStrip } from '@/components/ads/ad-banner';
+import { AdNative } from '@/components/ads/ad-native';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { TubeFeed } from '@/components/tube/tube-feed';
 import { TubeGrid } from '@/components/tube/tube-grid';
@@ -106,6 +108,8 @@ export default function HomePage() {
         </div>
       </section>
 
+      <AdLeadStrip />
+
       {pinned.length > 0 ? (
         <section aria-labelledby="pinned-heading" className="space-y-5">
           <div className="flex flex-wrap items-center gap-2">
@@ -118,6 +122,8 @@ export default function HomePage() {
           <TubeGrid videos={pinned} />
         </section>
       ) : null}
+
+      <AdNative />
 
       <TubeFeed
         initial={result}

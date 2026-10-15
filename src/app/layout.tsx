@@ -3,9 +3,11 @@ import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { Inter, Sora } from 'next/font/google';
 
+import { AdPopunder, AdSocialBar } from '@/components/ads/ad-scripts';
 import { AppShell } from '@/components/layout/app-shell';
 import { Providers } from '@/components/providers/providers';
 import { ThemeScript } from '@/components/providers/theme-script';
+import { JUICYADS_VERIFICATION } from '@/lib/ads';
 import { publicEnv } from '@/lib/env';
 import { DEFAULT_THEME, themeDefinition } from '@/lib/theme';
 
@@ -52,7 +54,7 @@ export const metadata: Metadata = {
     // Ad-network site verification. Must be a static tag in the server-rendered
     // <head> exactly as issued — the network's crawler does not run JavaScript,
     // so anything injected client-side would never be seen.
-    'juicyads-site-verification': '03e66023ac6e4d0cd6382434a9b333db',
+    'juicyads-site-verification': JUICYADS_VERIFICATION,
   },
 };
 
@@ -67,6 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" data-theme={DEFAULT_THEME} suppressHydrationWarning className={`${sans.variable} ${display.variable}`}>
       <head>
         <ThemeScript />
+        <AdPopunder />
       </head>
       <body>
         <a
@@ -78,6 +81,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>
+        <AdSocialBar />
       </body>
     </html>
   );

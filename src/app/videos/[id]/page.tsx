@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { AdBanner, AdLeadStrip } from '@/components/ads/ad-banner';
 import { PageHeader, SectionHeading } from '@/components/layout/page-header';
 import { TubeGrid } from '@/components/tube/tube-grid';
 import { TubePlayer, TubePlayerMeta } from '@/components/tube/tube-player';
@@ -46,8 +47,14 @@ export default async function SourceVideoPage({ params }: { params: { id: string
 
   return (
     <div className="space-y-8">
+      <AdLeadStrip />
+
       <TubePlayer video={video} />
       <TubePlayerMeta video={video} />
+
+      {/* Full-width unit between the player and the metadata: the visitor has
+          already committed to this video, so it interrupts nothing. */}
+      <AdBanner size="billboard" />
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0 space-y-5">
@@ -133,6 +140,8 @@ export default async function SourceVideoPage({ params }: { params: { id: string
         </div>
 
         <aside className={cn('min-w-0 space-y-4')}>
+          <AdBanner size="rectangle" />
+
           <SectionHeading
             title="More from this source"
             description={related.length > 0 ? `${related.length} indexed nearby` : undefined}

@@ -2,6 +2,8 @@ import { Clapperboard, Globe2, Search } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { AdLeadStrip } from '@/components/ads/ad-banner';
+import { AdNative } from '@/components/ads/ad-native';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { PageHeader } from '@/components/layout/page-header';
 import { TubeFeed } from '@/components/tube/tube-feed';
@@ -87,6 +89,8 @@ export default function SourceVideosPage({
         }
       />
 
+      <AdLeadStrip />
+
       <div className="space-y-3">
         <div className="fade-edge-x -mx-4 overflow-x-auto px-4 no-scrollbar sm:mx-0 sm:px-0">
           <ul className="flex w-max items-center gap-2 pb-1">
@@ -122,6 +126,8 @@ export default function SourceVideosPage({
           ))}
         </ul>
       </div>
+
+      <AdNative />
 
       <TubeFeed
         initial={result}
