@@ -1,0 +1,78 @@
+name: Source sync
+
+# The autonomous crawler. GitHub-hosted runners are free on a public repository, so
+# the schedule costs nothing: every run hits our own sync endpoint, which walks each
+# enabled source's listing pages, upserts anything new (deduped by page URL), and
+# records the run in `sync_runs` — visible in the admin panel.
+#
+# Requires two repository settings (Settings → Secrets and variables → Actions):
+#   • Variable  SITE_URL      — the deployed origin, e.g. https://example.com
+#   • Secret    CRON_SECRET   — the same value the site's CRON_SECRET carries
+#
+# A routine run walks 2 listing pages per source and finishes in a few minutes, well
+# inside the free tier. The sync is idempotent — videos are de-duplicated by their
+# page URL — so an overlapping or retried run cannot create doubles.
+
+on:
+  schedule:
+    # Every 12 hours, on the hour.
+    - cron: '0 */12 * * *'
+  # Allow an operator to run it by hand from the Actions tab at any depth.
+  workflow_dispatch:
+    inputs:
+      pages:
+        description: 'Listing pages walked per source (default 2)'
+        default: '2'
+        required: false
+      max_fetches:
+        description: 'Post-page fetches allowed per source (default 30)'
+        default: '30'
+        required: false
+
+concurrency:
+  # Two overlapping runs would race the same sources for nothing.
+  group: source-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Trigger the sync
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          PAGES: ${{ github.event.inputs.pages || '2' }}
+          MAX_FETCHES: ${{ github.event.inputs.max_fetches || '30' }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SITE_URL}" ] || [ -z "${CRON_SECRET}" ]; then
+            echo "::error::SITE_URL and CRON_SECRET must be set in the repository's Actions secrets."
+            exit 1
+          fi
+
+          # One retry after a beat: the site sits behind a platform that answers a
+          # cold burst with a 503 now and then, and the same URL works seconds later.
+          for attempt in 1 2 3; do
+            echo "Attempt ${attempt} — syncing sources…"
+            code=$(curl -sS -o sync-result.json -w '%{http_code}' --max-time 540 \
+              -H "x-cron-secret: ${CRON_SECRET}" \
+              "${SITE_URL}/api/cron/sync?secret=${CRON_SECRET}&trigger=cron&pages=${PAGES}&maxFetches=${MAX_FETCHES}" \
+            ) || code="000"
+
+            if [ "${code}" = "200" ]; then
+              echo "Sync completed:"
+              cat sync-result.json
+              echo
+              exit 0
+            fi
+
+            echo "::warning::Sync returned HTTP ${code}, attempt ${attempt} of 3."
+            rm -f sync-result.json
+            sleep 20
+          done
+
+          echo "::error::All three attempts failed — see the warnings above."
+          exit 1

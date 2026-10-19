@@ -32,9 +32,6 @@ import {
   ADSTERRA_UNITS,
   AD_PLACEMENTS,
   AD_SETTING_KEYS,
-  JUICY_FLOAT_ZONE,
-  JUICY_NATIVE_ZONE,
-  JUICY_ZONES,
   type AdSettingKey,
 } from '@/lib/ads';
 import { formatCompactNumber, formatExactNumber, formatRelativeTime } from '@/lib/format';
@@ -505,7 +502,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
 
       <Section
         title="Ads"
-        description="Two networks, layered: JuicyAds fills every zone, and an Adsterra unit takes a slot only where the JuicyAds one did not render. Changes apply to the next page render."
+        description="One network: Adsterra everywhere — banners, native cards, the in-video overlay, and the popunder and social bar. Changes apply to the next page render."
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <Toggle
@@ -516,43 +513,22 @@ export function AdminDashboard(props: AdminDashboardProps) {
             onChange={() => toggleAd('ads_enabled')}
           />
           <Toggle
-            label="JuicyAds primary"
-            description="Off hands every slot straight to Adsterra, with no zone request at all."
-            on={ads.ads_juicyads}
-            disabled={busy !== null}
-            onChange={() => toggleAd('ads_juicyads')}
-          />
-          <Toggle
-            label="Adsterra stand-in"
-            description="Rendered in a slot only when its JuicyAds zone fails or is blocked."
-            on={ads.ads_adsterra_fallback}
-            disabled={busy !== null}
-            onChange={() => toggleAd('ads_adsterra_fallback')}
-          />
-          <Toggle
             label="In-feed native"
-            description={`Sponsored cards in the feed — JuicyAds zone ${JUICY_NATIVE_ZONE}.`}
+            description="Sponsored cards in the feed."
             on={ads.ads_native}
             disabled={busy !== null}
             onChange={() => toggleAd('ads_native')}
           />
           <Toggle
             label="In-video overlay"
-            description={`The unit pinned over the player on a watch page — zone ${JUICY_ZONES.inVideo.id}.`}
+            description="The unit pinned over the player on a watch page."
             on={ads.ads_invideo}
             disabled={busy !== null}
             onChange={() => toggleAd('ads_invideo')}
           />
           <Toggle
-            label="Float ad"
-            description={`JuicyAds float — zone ${JUICY_FLOAT_ZONE}.`}
-            on={ads.ads_float}
-            disabled={busy !== null}
-            onChange={() => toggleAd('ads_float')}
-          />
-          <Toggle
             label="Popunder and social bar"
-            description="Adsterra's page-level scripts, separate from the JuicyAds zones."
+            description="Adsterra's page-level scripts."
             on={ads.ads_page_scripts}
             disabled={busy !== null}
             onChange={() => toggleAd('ads_page_scripts')}
@@ -561,41 +537,33 @@ export function AdminDashboard(props: AdminDashboardProps) {
 
         <details className="panel rounded-card p-3">
           <summary className="cursor-pointer text-2xs font-semibold uppercase tracking-wider text-foreground-subtle">
-            Zone map — every unit and where it lives
+            Unit map — every ad and where it lives
           </summary>
           <p className="pt-2 text-xs text-foreground-muted">
-            A JuicyAds zone owns its element by id, so no zone appears twice on one page. The stand-in is sized to the
-            space the slot occupies, never larger.
+            Every slot renders one Adsterra unit, sized to the space the slot occupies, never larger.
           </p>
           <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[34rem] border-collapse text-left text-sm">
+            <table className="w-full min-w-[24rem] border-collapse text-left text-sm">
               <thead>
                 <tr className="text-2xs uppercase tracking-wider text-foreground-subtle">
                   <th className="pb-2 font-semibold">Slots</th>
-                  <th className="pb-2 font-semibold">JuicyAds zone</th>
                   <th className="pb-2 font-semibold">Size</th>
-                  <th className="pb-2 font-semibold">Stand-in</th>
+                  <th className="pb-2 font-semibold">Network</th>
                 </tr>
               </thead>
               <tbody className="text-xs">
                 {Object.entries(AD_PLACEMENTS).map(([name, slot]) => (
                   <tr key={name} className="border-t border-border">
                     <td className="py-2 pr-3 font-medium">{name}</td>
-                    <td className="py-2 pr-3 tabular-nums text-foreground-muted">{slot.juicy ? slot.juicy.id : '—'}</td>
-                    <td className="py-2 pr-3 tabular-nums text-foreground-subtle">
-                      {slot.juicy ? `${slot.juicy.width}×${slot.juicy.height}` : '—'}
-                    </td>
-                    <td className="py-2 pr-3 text-foreground-subtle">
-                      {slot.fallback ? `${ADSTERRA_UNITS[slot.fallback].label} Adsterra` : 'none'}
-                    </td>
+                    <td className="py-2 pr-3 tabular-nums text-foreground-subtle">{ADSTERRA_UNITS[slot.unit].label}</td>
+                    <td className="py-2 pr-3 text-foreground-subtle">Adsterra</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           <p className="pt-3 text-2xs text-foreground-subtle">
-            Page-level units outside this map: float {JUICY_FLOAT_ZONE} and native {JUICY_NATIVE_ZONE}, both with
-            Adsterra stand-ins of their own.
+            Page-level units outside this map: the popunder, the social bar and the native feed — all Adsterra.
           </p>
         </details>
       </Section>

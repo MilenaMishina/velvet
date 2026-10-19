@@ -23,6 +23,13 @@ export function PageHeader({ eyebrow, title, description, actions, className }: 
           </p>
         ) : null}
         <h1 className="font-display text-2xl font-bold tracking-[-0.02em] text-pretty sm:text-3xl">{title}</h1>
+        {/* A short gold rule under the title: the one accent on an otherwise quiet
+            heading, so every page opens with the same brand mark. */}
+        <div
+          aria-hidden
+          className="h-px w-16"
+          style={{ backgroundImage: 'linear-gradient(to right, hsl(var(--primary)), transparent)' }}
+        />
         {description ? (
           <p className="max-w-2xl text-sm leading-relaxed text-foreground-muted">{description}</p>
         ) : null}

@@ -8,7 +8,7 @@ import animate from 'tailwindcss-animate';
  * `/opacity` modifiers keep working thanks to `<alpha-value>`.
  */
 const config: Config = {
-  darkMode: ['class', '[data-theme="midnight"], [data-theme="glass"]'],
+  darkMode: ['class', '[data-theme="midnight"], [data-theme="obsidian"], [data-theme="glass"]'],
   content: ['./src/**/*.{ts,tsx,mdx}'],
   theme: {
     extend: {

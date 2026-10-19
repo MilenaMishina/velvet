@@ -46,72 +46,90 @@ export default function HomePage() {
 
   return (
     <div className="space-y-8">
-      <section className="panel relative isolate overflow-hidden rounded-card px-6 py-10 shadow-card sm:px-10 sm:py-14">
-        {/* Decorative aurora concentrated behind the headline. */}
+      <section className="relative isolate">
+        {/* The hero frame: a hairline gold ring and a deep lift make the panel read as
+            a slab of polished stone rather than a card — the single biggest lever in
+            the page's first impression. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10 opacity-70"
-          style={{
-            backgroundImage:
-              'radial-gradient(40rem 20rem at 12% 0%, hsl(var(--primary) / 0.22), transparent 62%), radial-gradient(32rem 18rem at 92% 10%, hsl(var(--accent) / 0.18), transparent 60%)',
-          }}
+          className="pointer-events-none absolute inset-0 -z-10 rounded-card shadow-glow ring-1 ring-border"
         />
+        <div className="panel relative isolate overflow-hidden rounded-card px-6 py-12 shadow-card sm:px-12 sm:py-20">
+          {/* Decorative aurora concentrated behind the headline, plus a slow sheen that
+              sweeps the panel once — motion that reads as light on stone. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-10 opacity-80"
+            style={{
+              backgroundImage:
+                'radial-gradient(44rem 22rem at 10% 0%, hsl(var(--primary) / 0.2), transparent 62%), radial-gradient(34rem 20rem at 94% 8%, hsl(var(--accent) / 0.16), transparent 60%), radial-gradient(30rem 22rem at 55% 110%, hsl(var(--primary) / 0.1), transparent 65%)',
+            }}
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-10 animate-shimmer bg-sheen"
+          />
 
-        <div className="max-w-3xl space-y-5">
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs font-semibold uppercase tracking-wider text-foreground-subtle">
-            <Sparkles className="size-3.5" aria-hidden />
-            <span>
-              {formatCompactNumber(stats.publishedVideos)} videos indexed from {sources.length || 'our'}{' '}
-              {sources.length === 1 ? 'site' : 'sites'}
-            </span>
-          </p>
+          <div className="max-w-3xl space-y-6">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs font-semibold uppercase tracking-[0.16em] text-primary">
+              <Sparkles className="size-3.5" aria-hidden />
+              <span>
+                {formatCompactNumber(stats.publishedVideos)} videos indexed from {sources.length || 'our'}{' '}
+                {sources.length === 1 ? 'site' : 'sites'}
+              </span>
+            </p>
 
-          <h1 className="font-display text-3xl font-bold leading-[1.1] tracking-[-0.03em] text-pretty sm:text-5xl">
-            Adult video, <span className="brand-text">finally organised</span>.
-          </h1>
+            <h1 className="font-display text-4xl font-bold leading-[1.05] tracking-[-0.035em] text-pretty sm:text-6xl">
+              Adult video, <span className="brand-text">finally organised</span>.
+            </h1>
 
-          <p className="max-w-2xl text-sm leading-relaxed text-foreground-muted sm:text-base">
-            We index the scenes and frame each publisher&rsquo;s own player, so playback always credits the site that
-            made it. Newest first, straight from the sources we follow — nothing copied, cached or re-hosted.
-          </p>
+            {/* A short gold flourish under the headline: the one hard accent in an
+                otherwise quiet hero, so the eye lands on the brand before the grid. */}
+            <div aria-hidden className="hairline h-px w-24" style={{ backgroundImage: 'linear-gradient(to right, hsl(var(--primary)), transparent)' }} />
 
-          <div className="flex flex-wrap items-center gap-2.5 pt-1">
-            <Button asChild size="lg" pill>
-              <Link href={routes.tube.index}>
-                <Flame aria-hidden />
-                Browse everything
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" pill>
-              <Link href={routes.trending}>
-                <TrendingUp aria-hidden />
-                Most watched
-              </Link>
-            </Button>
+            <p className="max-w-2xl text-sm leading-relaxed text-foreground-muted sm:text-base">
+              We index the scenes and frame each publisher&rsquo;s own player, so playback always credits the site that
+              made it. Newest first, straight from the sources we follow — nothing copied, cached or re-hosted.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-2.5 pt-1">
+              <Button asChild size="lg" pill>
+                <Link href={routes.tube.index}>
+                  <Flame aria-hidden />
+                  Browse everything
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" pill>
+                <Link href={routes.trending}>
+                  <TrendingUp aria-hidden />
+                  Most watched
+                </Link>
+              </Button>
+            </div>
+
+            {sources.length > 0 ? (
+              <ul className="flex flex-wrap items-center gap-2 pt-3">
+                {sources.map((source) => (
+                  <li key={source.id}>
+                    <Link
+                      href={routes.tube.filtered({ source: source.id })}
+                      className="panel inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-xs font-semibold text-foreground-muted transition-colors hover:border-border-strong hover:text-foreground"
+                    >
+                      {source.name}
+                      <span className="tabular-nums text-foreground-subtle">{source.count}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
-
-          {sources.length > 0 ? (
-            <ul className="flex flex-wrap items-center gap-2 pt-3">
-              {sources.map((source) => (
-                <li key={source.id}>
-                  <Link
-                    href={routes.tube.filtered({ source: source.id })}
-                    className="panel inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-xs font-semibold text-foreground-muted transition-colors hover:border-border-strong hover:text-foreground"
-                  >
-                    {source.name}
-                    <span className="tabular-nums text-foreground-subtle">{source.count}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : null}
         </div>
       </section>
 
       <AdLeadStrip />
 
-      {/* The widest unit the network issues, and the only place on the site where a
-          908px banner has the room to be shown at its own size. */}
+      {/* The widest unit the network issues for the home page, given a full-width
+          row of its own. */}
       <AdSlot placement="home-super" />
 
       {pinned.length > 0 ? (

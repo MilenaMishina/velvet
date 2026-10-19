@@ -4,31 +4,24 @@ import { X } from 'lucide-react';
 import * as React from 'react';
 
 import { useAdConfig } from '@/components/ads/ad-config-provider';
-import { useJuicyZone } from '@/components/ads/ad-slot';
-import { ADSTERRA_UNITS, JUICY_ZONES, adsterraSnippet } from '@/lib/ads';
+import { ADSTERRA_UNITS, adsterraSnippet } from '@/lib/ads';
 import { cn } from '@/lib/utils';
 
 /**
- * The unit that sits *over* the player.
+ * The unit that sits *over* the player — a single Adsterra rectangle.
  *
  * A watch page is the most engaged moment on the site and the least served by the
  * page-level slots, which is why this one is pinned to the player rather than left in
  * the document flow. It is deliberately dismissible: an overlay a visitor cannot close
  * is how you lose the visitor and the impression with it.
- *
- * Same rule as every other slot — JuicyAds first, an Adsterra unit only when the zone
- * does not fill.
  */
 export function AdInVideo({ className }: { className?: string }) {
   const config = useAdConfig();
   const [dismissed, setDismissed] = React.useState(false);
-  const zone = config.juicyAds ? JUICY_ZONES.inVideo : null;
-  const { useStandIn, containerRef } = useJuicyZone(zone);
 
   if (!config.enabled || !config.inVideo || dismissed) return null;
 
-  const standIn = config.adsterraFallback ? ADSTERRA_UNITS.rectangle : null;
-  if (!zone && !standIn) return null;
+  const unit = ADSTERRA_UNITS.rectangle;
 
   return (
     <div
@@ -47,18 +40,16 @@ export function AdInVideo({ className }: { className?: string }) {
           <X className="size-3.5" aria-hidden />
         </button>
 
-        <div ref={containerRef} className="flex items-center justify-center" style={{ minHeight: 250 }}>
-          {useStandIn && standIn ? (
-            <iframe
-              title={`Advertisement ${standIn.label}`}
-              srcDoc={adsterraSnippet('rectangle')}
-              width={standIn.width}
-              height={standIn.height}
-              loading="lazy"
-              scrolling="no"
-              className="block max-w-[78vw] border-0 sm:max-w-none"
-            />
-          ) : null}
+        <div className="flex items-center justify-center" style={{ minHeight: unit.height }}>
+          <iframe
+            title={`Advertisement ${unit.label}`}
+            srcDoc={adsterraSnippet('rectangle')}
+            width={unit.width}
+            height={unit.height}
+            loading="lazy"
+            scrolling="no"
+            className="block max-w-[78vw] border-0 sm:max-w-none"
+          />
         </div>
 
         <span className="text-2xs font-semibold uppercase tracking-wider text-white/60">Ad</span>

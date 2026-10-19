@@ -6,10 +6,10 @@
  * to a single attribute write — no class churn, no re-render of the tree.
  */
 
-export const THEME_IDS = ['midnight', 'paper', 'glass'] as const;
+export const THEME_IDS = ['obsidian', 'midnight', 'paper', 'glass'] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
 
-export const DEFAULT_THEME: ThemeId = 'midnight';
+export const DEFAULT_THEME: ThemeId = 'obsidian';
 
 /** localStorage key. Versioned so a token rename can't resurrect a dead value. */
 export const THEME_STORAGE_KEY = 'velvet.theme.v1';
@@ -25,6 +25,13 @@ export interface ThemeDefinition {
 }
 
 export const THEMES: readonly ThemeDefinition[] = [
+  {
+    id: 'obsidian',
+    label: 'Onyx',
+    description: 'Obsidian black with champagne-gold luxury',
+    themeColor: '#070605',
+    swatch: ['#141008', '#d4af6a'],
+  },
   {
     id: 'midnight',
     label: 'Noir',

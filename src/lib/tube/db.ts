@@ -49,6 +49,11 @@ export function getDb(): DatabaseSync {
   if (dbInstance) return dbInstance;
   mkdirSync(DATA_DIR, { recursive: true });
   const db = new DatabaseSync(DB_FILE);
+  // A busy timeout before anything else: the build prerenders pages in parallel and
+  // every worker opens this file and runs the schema writes below at open time, so
+  // without it two workers holding the database at once fail the whole build with
+  // SQLITE_BUSY. With it, a write waits its turn instead of throwing.
+  db.exec('PRAGMA busy_timeout = 5000;');
   db.exec('PRAGMA journal_mode = WAL;');
   db.exec(SCHEMA);
   for (const migration of COLUMN_MIGRATIONS) {

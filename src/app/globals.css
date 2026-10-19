@@ -26,10 +26,50 @@
     --panel-saturate: 100%;
   }
 
-  /* ── Noir (id: midnight): the default. Near-black blue, icy azure + hot rose. ──
+  /* ── Onyx (id: obsidian): the default. Near-black warm charcoal, champagne-gold
+     + rose-gold. Deliberately dark: the backdrop stays under 4% lightness so posters
+     carry the colour, which is the whole point of a thumbnails-first site — and the
+     gold reads as luxury rather than as a link colour. */
+  :root,
+  [data-theme='obsidian'] {
+    color-scheme: dark;
+
+    --bg: 30 30% 3%;
+    --surface: 28 26% 7%;
+    --surface-raised: 28 24% 11%;
+    --surface-sunken: 30 34% 2%;
+
+    --border: 34 20% 17%;
+    --border-strong: 36 24% 30%;
+
+    --fg: 40 30% 97%;
+    --fg-muted: 36 16% 74%;
+    --fg-subtle: 34 12% 56%;
+
+    --primary: 42 62% 62%;
+    --primary-fg: 30 60% 6%;
+    --accent: 20 74% 66%;
+    --accent-fg: 20 60% 8%;
+    --ring: 42 62% 66%;
+
+    --success: 152 64% 46%;
+    --warning: 38 94% 58%;
+    --danger: 356 80% 60%;
+
+    --shadow-soft: 0 1px 2px hsl(28 60% 1% / 0.6);
+    --shadow-card: 0 10px 30px -12px hsl(28 60% 1% / 0.8);
+    --shadow-lifted: 0 26px 60px -22px hsl(28 70% 1% / 0.9);
+    --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.3), 0 18px 50px -18px hsl(var(--primary) / 0.45);
+
+    --aurora:
+      radial-gradient(58rem 30rem at 12% -8%, hsl(42 62% 55% / 0.13), transparent 62%),
+      radial-gradient(46rem 26rem at 92% 4%, hsl(20 74% 58% / 0.1), transparent 60%),
+      radial-gradient(40rem 28rem at 50% 108%, hsl(340 50% 45% / 0.09), transparent 65%);
+  }
+
+  /* ── Noir (id: midnight). Near-black blue, icy azure + hot rose. ──
      Deliberately dark: the backdrop stays under 6% lightness so posters carry
      the colour, which is the whole point of a thumbnails-first site. */
-  :root,
   [data-theme='midnight'] {
     color-scheme: dark;
 

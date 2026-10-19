@@ -4,11 +4,11 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Sora } from 'next/font/google';
 
 import { AdConfigProvider } from '@/components/ads/ad-config-provider';
-import { AdFloat, AdJuicyLoader, AdPopunder, AdSocialBar } from '@/components/ads/ad-scripts';
+import { AdPopunder, AdSocialBar } from '@/components/ads/ad-scripts';
 import { AppShell } from '@/components/layout/app-shell';
 import { Providers } from '@/components/providers/providers';
 import { ThemeScript } from '@/components/providers/theme-script';
-import { JUICYADS_VERIFICATION, adConfigFromSettings } from '@/lib/ads';
+import { adConfigFromSettings } from '@/lib/ads';
 import { publicEnv } from '@/lib/env';
 import { DEFAULT_THEME, themeDefinition } from '@/lib/theme';
 import { adSettingValues } from '@/lib/tube/db';
@@ -53,10 +53,6 @@ export const metadata: Metadata = {
     // that omits it gets miscategorised as general-audience content, which is a
     // real problem for a site aimed at an adult audience, not a legal formality.
     rating: 'RTA-5042-1996-1400-1577-RTA',
-    // Ad-network site verification. Must be a static tag in the server-rendered
-    // <head> exactly as issued — JuicyAds' crawler does not run JavaScript, so
-    // anything injected client-side would never be seen.
-    'juicyads-site-verification': JUICYADS_VERIFICATION,
   },
 };
 
@@ -75,9 +71,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" data-theme={DEFAULT_THEME} suppressHydrationWarning className={`${sans.variable} ${display.variable}`}>
       <head>
         <ThemeScript />
-        {/* Both loaders live in the head: the zone loader has to be present before any
-            slot asks for a fill, and the popunder is expected there by its network. */}
-        <AdJuicyLoader config={adConfig} />
+        {/* The popunder lives in the head, where its network expects it. */}
         <AdPopunder config={adConfig} />
       </head>
       <body>
@@ -92,7 +86,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <AppShell>{children}</AppShell>
           </Providers>
         </AdConfigProvider>
-        <AdFloat config={adConfig} />
         <AdSocialBar config={adConfig} />
       </body>
     </html>

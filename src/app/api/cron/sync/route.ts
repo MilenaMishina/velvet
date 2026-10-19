@@ -42,6 +42,10 @@ export async function GET(request: NextRequest) {
   const pages = Number(params.get('pages') ?? '2');
   const maxPostFetches = Number(params.get('maxFetches') ?? '30');
   const delay = Number(params.get('delay') ?? '');
+  // The caller says why it is running: the GitHub Actions schedule passes `cron`, so
+  // `sync_runs` records the trigger truthfully in the admin panel instead of every
+  // automated run looking like a manual one.
+  const trigger = params.get('trigger') === 'cron' ? 'cron' : 'manual';
   const sources = (params.get('sources') ?? '')
     .split(',')
     .map((id) => id.trim())
@@ -49,7 +53,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const summary = await runSync({
-      trigger: 'manual',
+      trigger,
       pagesPerSource: Number.isFinite(pages) ? pages : 2,
       maxPostFetches: Number.isFinite(maxPostFetches) ? maxPostFetches : 30,
       ...(sources.length > 0 ? { sources } : {}),
