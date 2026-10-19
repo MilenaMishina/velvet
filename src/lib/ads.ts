@@ -57,6 +57,12 @@ export const ADSTERRA_BANNER_BASE = 'https://www.profitableratecpmnetwork.com';
 export interface AdPlacement {
   /** The Adsterra unit this slot renders. */
   unit: AdsterraSize;
+  /**
+   * Unit used below the `sm` breakpoint, where the primary one is wider than the
+   * viewport. Rendering a 728px frame on a phone clips the advert rather than
+   * shrinking it, so the slot swaps to a unit that actually fits.
+   */
+  mobile?: AdsterraSize;
   /** Width reserved on the page. */
   width: number;
   height: number;
@@ -76,15 +82,15 @@ export const AD_PLACEMENTS = {
   'lead-wide': { unit: 'leaderboard', width: 728, height: 90, caption: 'Advertisement' },
   'lead-narrow': { unit: 'mobile', width: 320, height: 50, caption: 'Advertisement' },
   // Home.
-  'home-super': { unit: 'leaderboard', width: 728, height: 90, caption: 'Advertisement' },
+  'home-super': { unit: 'leaderboard', mobile: 'mobile', width: 728, height: 90, caption: 'Advertisement' },
   'home-square': { unit: 'rectangle', width: 300, height: 250, caption: 'Advertisement' },
-  'home-strip': { unit: 'billboard', width: 468, height: 60, caption: 'Advertisement' },
+  'home-strip': { unit: 'billboard', mobile: 'mobile', width: 468, height: 60, caption: 'Advertisement' },
   // In-feed, on the listing pages.
   'feed-rectangle': { unit: 'rectangle', width: 300, height: 250, caption: 'Advertisement' },
-  'feed-billboard': { unit: 'billboard', width: 468, height: 60, caption: 'Advertisement' },
+  'feed-billboard': { unit: 'billboard', mobile: 'mobile', width: 468, height: 60, caption: 'Advertisement' },
   // Watch page.
   'watch-rectangle': { unit: 'rectangle', width: 300, height: 250, caption: 'Advertisement' },
-  'watch-billboard': { unit: 'billboard', width: 468, height: 60, caption: 'Advertisement' },
+  'watch-billboard': { unit: 'billboard', mobile: 'mobile', width: 468, height: 60, caption: 'Advertisement' },
   'watch-promo': { unit: 'rectangle', width: 300, height: 250, caption: 'Advertisement' },
   'poster-square': { unit: 'rectangle', width: 300, height: 250, caption: 'Advertisement' },
   // Global rail (desktop only — the column is 16rem wide).
@@ -93,7 +99,7 @@ export const AD_PLACEMENTS = {
   // Global footer band: the small, wide units that have nowhere else to sit.
   'band-a': { unit: 'mobile', width: 320, height: 50, caption: 'Partner offer' },
   'band-b': { unit: 'mobile', width: 320, height: 50, caption: 'Partner offer' },
-  'band-c': { unit: 'billboard', width: 468, height: 60, caption: 'Partner offer' },
+  'band-c': { unit: 'billboard', mobile: 'mobile', width: 468, height: 60, caption: 'Partner offer' },
 } as const satisfies Record<string, AdPlacement>;
 
 export type AdPlacementName = keyof typeof AD_PLACEMENTS;

@@ -3,7 +3,7 @@
 import * as React from 'react';
 
 import { useAdConfig } from '@/components/ads/ad-config-provider';
-import { ADSTERRA_UNITS, AD_PLACEMENTS, adsterraSnippet, type AdPlacementName } from '@/lib/ads';
+import { ADSTERRA_UNITS, AD_PLACEMENTS, adsterraSnippet, type AdPlacement, type AdPlacementName } from '@/lib/ads';
 import { cn } from '@/lib/utils';
 
 export interface AdSlotProps {
@@ -14,20 +14,41 @@ export interface AdSlotProps {
   caption?: string | null;
 }
 
+/** True at the `sm` breakpoint and up. `null` until hydration tells us. */
+function useIsWide(): boolean | null {
+  const [wide, setWide] = React.useState<boolean | null>(null);
+  React.useEffect(() => {
+    const query = window.matchMedia('(min-width: 640px)');
+    const update = () => setWide(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  return wide;
+}
+
 /**
  * One ad slot: a single Adsterra unit, rendered directly.
  *
  * The space is reserved up front — width and height are known before the iframe is
  * requested — so a unit that loads slowly costs no layout shift, and there is no
  * second network waiting to double up with it.
+ *
+ * A slot whose unit is wider than a phone swaps to its `mobile` unit below `sm`,
+ * because a fixed-width frame that does not fit is clipped, not scaled, and half an
+ * advert is worth neither the impression nor the tidy layout.
  */
 export function AdSlot({ placement, className, caption }: AdSlotProps) {
   const config = useAdConfig();
-  const spec = AD_PLACEMENTS[placement];
+  // Widened to `AdPlacement` on purpose: the literal table is `as const`, so its members
+  // only carry the keys they declare and `mobile` would not type-check on the others.
+  const spec: AdPlacement = AD_PLACEMENTS[placement];
+  const wide = useIsWide();
 
   if (!config.enabled) return null;
 
-  const unit = ADSTERRA_UNITS[spec.unit];
+  const size = spec.mobile && wide === false ? spec.mobile : spec.unit;
+  const unit = ADSTERRA_UNITS[size];
   const label = caption === null ? null : (caption ?? spec.caption);
 
   return (
@@ -39,7 +60,7 @@ export function AdSlot({ placement, className, caption }: AdSlotProps) {
       <div className="relative flex items-center justify-center" style={{ minHeight: unit.height }}>
         <iframe
           title={`Advertisement ${unit.label}`}
-          srcDoc={adsterraSnippet(spec.unit)}
+          srcDoc={adsterraSnippet(size)}
           width={unit.width}
           height={unit.height}
           loading="lazy"
@@ -63,15 +84,7 @@ export function AdSlot({ placement, className, caption }: AdSlotProps) {
  */
 export function AdLeadStrip({ className }: { className?: string }) {
   const config = useAdConfig();
-  const [wide, setWide] = React.useState<boolean | null>(null);
-
-  React.useEffect(() => {
-    const query = window.matchMedia('(min-width: 640px)');
-    const update = () => setWide(query.matches);
-    update();
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, []);
+  const wide = useIsWide();
 
   // Before hydration `wide` is unknown: render nothing rather than guess, because the
   // slot is a thin strip and a wrong guess shows two units stacked for a frame.
