@@ -26,50 +26,48 @@
     --panel-saturate: 100%;
   }
 
-  /* ── Onyx (id: obsidian): the default. Near-black warm charcoal, champagne-gold
-     + rose-gold. Deliberately dark: the backdrop stays under 4% lightness so posters
-     carry the colour, which is the whole point of a thumbnails-first site — and the
-     gold reads as luxury rather than as a link colour. */
+  /* ── Onyx (id: obsidian): the default. A near-black cinematic charcoal with
+     champagne-gold and deep rose. The backdrop stays under 2.5% lightness so posters
+     carry the colour — the whole point of a thumbnails-first site — while the gold
+     reads as luxury and the rose as seduction. */
   :root,
   [data-theme='obsidian'] {
     color-scheme: dark;
 
-    --bg: 30 30% 3%;
-    --surface: 28 26% 7%;
-    --surface-raised: 28 24% 11%;
-    --surface-sunken: 30 34% 2%;
+    --bg: 24 24% 2.5%;
+    --surface: 26 22% 5.5%;
+    --surface-raised: 27 20% 9%;
+    --surface-sunken: 24 40% 1.5%;
 
-    --border: 34 20% 17%;
-    --border-strong: 36 24% 30%;
+    --border: 33 18% 14%;
+    --border-strong: 38 30% 27%;
 
-    --fg: 40 30% 97%;
-    --fg-muted: 36 16% 74%;
-    --fg-subtle: 34 12% 56%;
+    --fg: 42 40% 98%;
+    --fg-muted: 38 16% 75%;
+    --fg-subtle: 35 12% 56%;
 
-    --primary: 42 62% 62%;
+    --primary: 43 68% 64%;
     --primary-fg: 30 60% 6%;
-    --accent: 20 74% 66%;
+    --accent: 344 74% 66%;
     --accent-fg: 20 60% 8%;
-    --ring: 42 62% 66%;
+    --ring: 43 68% 68%;
 
     --success: 152 64% 46%;
     --warning: 38 94% 58%;
     --danger: 356 80% 60%;
 
     --shadow-soft: 0 1px 2px hsl(28 60% 1% / 0.6);
-    --shadow-card: 0 10px 30px -12px hsl(28 60% 1% / 0.8);
-    --shadow-lifted: 0 26px 60px -22px hsl(28 70% 1% / 0.9);
-    --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.3), 0 18px 50px -18px hsl(var(--primary) / 0.45);
+    --shadow-card: 0 14px 34px -14px hsl(28 60% 1% / 0.85);
+    --shadow-lifted: 0 30px 70px -26px hsl(28 70% 1% / 0.95);
+    --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.35), 0 22px 60px -20px hsl(var(--primary) / 0.5);
 
     --aurora:
-      radial-gradient(58rem 30rem at 12% -8%, hsl(42 62% 55% / 0.13), transparent 62%),
-      radial-gradient(46rem 26rem at 92% 4%, hsl(20 74% 58% / 0.1), transparent 60%),
-      radial-gradient(40rem 28rem at 50% 108%, hsl(340 50% 45% / 0.09), transparent 65%);
-  }
-
-  /* ── Noir (id: midnight). Near-black blue, icy azure + hot rose. ──
-     Deliberately dark: the backdrop stays under 6% lightness so posters carry
-     the colour, which is the whole point of a thumbnails-first site. */
+      radial-gradient(58rem 30rem at 12% -8%, hsl(43 70% 58% / 0.11), transparent 62%),
+      radial-gradient(46rem 26rem at 92% 4%, hsl(344 76% 58% / 0.09), transparent 60%),
+      radial-gradient(40rem 28rem at 50% 108%, hsl(340 55% 45% / 0.08), transparent 65%);
+  }/* ── Noir (id: midnight). Near-black blue, icy azure + hot rose. ──
+   Deliberately dark: the backdrop stays under 6% lightness so posters carry
+   the colour, which is the whole point of a thumbnails-first site. */
   [data-theme='midnight'] {
     color-scheme: dark;
 
@@ -319,6 +317,77 @@
   .brand-text {
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(115deg, hsl(var(--fg)), hsl(var(--primary)) 60%, hsl(var(--accent)));
+  }
+
+  /* The interactive card lift: poster rises, hairline turns gold. The single
+     most repeated interaction on the site, so it lives here rather than being
+     restated on every card. */
+  .card-lux {
+    transition-property: transform, box-shadow, border-color;
+    transition-duration: 320ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .group\/card:hover .card-lux,
+  .card-lux:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lifted), 0 0 0 1px hsl(var(--primary) / 0.45);
+  }
+
+  /* Luxury chip: the pill used by every filter rail and tag row. */
+  .chip {
+    @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-pill px-3.5 py-2 text-xs font-semibold;
+    background-color: hsl(var(--surface) / var(--surface-alpha));
+    border: 1px solid hsl(var(--border) / var(--border-alpha));
+    color: hsl(var(--fg-muted));
+    transition-property: color, border-color, background-color, box-shadow;
+    transition-duration: 220ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .chip:hover {
+    border-color: hsl(var(--border-strong));
+    color: hsl(var(--fg));
+  }
+
+  .chip-active {
+    background-image: linear-gradient(115deg, hsl(var(--primary)), hsl(var(--accent)));
+    border-color: transparent;
+    color: hsl(var(--primary-fg));
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* Horizontal snap rail for featured shelves: swipeable, snapped, fading edges. */
+  .rail {
+    @apply -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 no-scrollbar sm:mx-0 sm:px-0;
+    mask-image: linear-gradient(to right, transparent, black 2%, black 98%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 2%, black 98%, transparent);
+  }
+
+  .rail > * {
+    @apply w-[16rem] shrink-0 snap-start sm:w-[17.5rem];
+  }
+
+  /* A soft gold text-glow for the handful of display headlines that should feel
+     lit from behind. */
+  .text-glow {
+    text-shadow:
+      0 0 18px hsl(var(--primary) / 0.4),
+      0 0 46px hsl(var(--accent) / 0.18);
+  }
+
+  /* Gradient hairline border drawn with padding-box/border-box stops — used on
+     featured cards where a flat border would flatten the whole design. */
+  .lux-ring {
+    border: 1px solid transparent;
+    background:
+      linear-gradient(hsl(var(--surface) / var(--surface-alpha)), hsl(var(--surface) / var(--surface-alpha))) padding-box,
+      linear-gradient(135deg, hsl(var(--primary) / 0.55), hsl(var(--border) / 0.8) 38%, hsl(var(--accent) / 0.45)) border-box;
+  }
+
+  .mask-fade-b {
+    mask-image: linear-gradient(to bottom, black 55%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent);
   }
 }
 

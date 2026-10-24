@@ -21,6 +21,18 @@ export const routes = {
   admin: '/admin',
   /** Most-viewed across every source we index — our own ranking, not YouTube's. */
   trending: '/videos?sort=views',
+  /** The whole tag cloud. */
+  tags: '/tags',
+  /** Directory of every indexed site. */
+  sources: '/sources',
+  legal: {
+    about: '/about',
+    terms: '/terms',
+    privacy: '/privacy',
+    dmca: '/dmca',
+    '2257': '/2257',
+    contact: '/contact',
+  },
   category: (slug: string) => `/category/${encodeURIComponent(slug)}`,
   watch: (videoId: string) => `/watch?v=${encodeURIComponent(videoId)}`,
   channel: (channelId: string) => `/channel/${encodeURIComponent(channelId)}`,
@@ -42,13 +54,15 @@ export const routes = {
   tube: {
     index: '/videos',
     watch: (id: string) => `/videos/${encodeURIComponent(id)}`,
-    filtered: (params: { source?: string; q?: string; sort?: TubeSort }) =>
+    filtered: (params: { source?: string; q?: string; sort?: TubeSort; tag?: string }) =>
       `/videos${toQuery({
         source: params.source,
         q: params.q,
+        tag: params.tag,
         // `newest` is the default, so it stays out of the URL.
         sort: params.sort && params.sort !== 'newest' ? params.sort : undefined,
       })}`,
+    tag: (tag: string) => `/videos?tag=${encodeURIComponent(tag)}`,
   },
 } as const;
 

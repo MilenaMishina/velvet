@@ -3,46 +3,30 @@
 import { Suspense } from 'react';
 
 import { AdPartnerBand } from '@/components/ads/ad-smartlink';
-import { Navbar, NavbarFallback } from '@/components/layout/navbar';
 import { MobileNav } from '@/components/layout/mobile-nav';
-import { Sidebar, SidebarFallback } from '@/components/layout/sidebar';
+import { Navbar, NavbarFallback } from '@/components/layout/navbar';
 import { SiteNotice } from '@/components/layout/site-chrome';
 import { VisitBeacon } from '@/components/layout/visit-beacon';
-import { SIDEBAR_WIDTH, useSidebar } from '@/components/providers/sidebar-provider';
 
 /**
- * Application chrome: fixed nav, desktop sidebar, mobile bottom bar.
+ * Application chrome: fixed nav, content column, global footer, mobile bottom bar.
  *
- * A client component because the sidebar width is a visitor preference. The width
- * travels as a single CSS variable on the wrapper — `--sidebar-w` — so the rail and
- * the content offset are driven by the same number and can never disagree.
+ * A client component because the nav reads the query string (active tab, live
+ * search term), which opts its subtree into client rendering. The nav sits in its
+ * own Suspense boundary so a filter change doesn't re-render the page below it.
  *
- * The nav and sidebar read the query string (active tab, live search term), which
- * opts their subtree into client rendering. Keeping each in its own Suspense
- * boundary means a filter change doesn't re-render the page below them.
+ * `footer` is a server component handed down from the root layout — the database
+ * reads it needs (live tag counts) stay on the server while the shell stays client.
  */
-export function AppShell({ children }: { children: React.ReactNode }) {
-  const { collapsed, toggle } = useSidebar();
-  const width = collapsed ? SIDEBAR_WIDTH.collapsed : SIDEBAR_WIDTH.expanded;
-
+export function AppShell({ children, footer }: { children: React.ReactNode; footer?: React.ReactNode }) {
   return (
-    <div className="min-h-screen" style={{ '--sidebar-w': `${width}rem` } as React.CSSProperties}>
+    <div className="min-h-screen">
       <Suspense fallback={<NavbarFallback />}>
-        <Navbar collapsed={collapsed} onToggleSidebar={toggle} />
+        <Navbar />
       </Suspense>
 
-      <aside
-        aria-label="Browse"
-        className="fixed inset-y-0 left-0 z-40 hidden border-r border-border pt-14 transition-[width] duration-300 ease-spring lg:block"
-        style={{ width: 'var(--sidebar-w)' }}
-      >
-        <Suspense fallback={<SidebarFallback />}>
-          <Sidebar collapsed={collapsed} />
-        </Suspense>
-      </aside>
-
       {/* Bottom padding leaves room for the mobile nav bar. */}
-      <main id="main" className="pb-[5.5rem] pt-14 lg:pb-10 lg:pl-[var(--sidebar-w)]">
+      <main id="main" className="pb-[5.5rem] pt-16 lg:pb-6">
         <div className="mx-auto max-w-[1980px] px-4 py-6 sm:px-6 lg:px-8">
           <SiteNotice />
           {children}
@@ -52,6 +36,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
+      {footer}
       <MobileNav />
       <VisitBeacon />
     </div>

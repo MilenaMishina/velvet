@@ -6,6 +6,7 @@ import { Inter, Sora } from 'next/font/google';
 import { AdConfigProvider } from '@/components/ads/ad-config-provider';
 import { AdPopunder, AdSocialBar } from '@/components/ads/ad-scripts';
 import { AppShell } from '@/components/layout/app-shell';
+import { SiteFooter } from '@/components/layout/site-footer';
 import { Providers } from '@/components/providers/providers';
 import { ThemeScript } from '@/components/providers/theme-script';
 import { adConfigFromSettings } from '@/lib/ads';
@@ -83,7 +84,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </a>
         <AdConfigProvider value={adConfig}>
           <Providers>
-            <AppShell>{children}</AppShell>
+            <AppShell footer={<SiteFooter />}>{children}</AppShell>
           </Providers>
         </AdConfigProvider>
         <AdSocialBar config={adConfig} />

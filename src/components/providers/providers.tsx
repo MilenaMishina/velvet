@@ -4,7 +4,6 @@ import { MotionConfig } from 'framer-motion';
 import * as React from 'react';
 
 import { LibraryProvider } from '@/components/providers/library-provider';
-import { SidebarProvider } from '@/components/providers/sidebar-provider';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -17,15 +16,13 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
-      <SidebarProvider>
-        <LibraryProvider>
-          <MotionConfig reducedMotion="user">
-            <TooltipProvider delayDuration={320} skipDelayDuration={180}>
-              {children}
-            </TooltipProvider>
-          </MotionConfig>
-        </LibraryProvider>
-      </SidebarProvider>
+      <LibraryProvider>
+        <MotionConfig reducedMotion="user">
+          <TooltipProvider delayDuration={320} skipDelayDuration={180}>
+            {children}
+          </TooltipProvider>
+        </MotionConfig>
+      </LibraryProvider>
     </ThemeProvider>
   );
 }
