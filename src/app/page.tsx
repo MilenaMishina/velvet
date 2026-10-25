@@ -204,7 +204,7 @@ export default function HomePage() {
               </Link>
             }
           />
-          <TubeGrid videos={trendingShelf} layout="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-5" />
+          <TubeGrid videos={trendingShelf} layout="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4" />
         </section>
       ) : null}
 

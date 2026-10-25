@@ -23,7 +23,10 @@ export function AppShell({ children, footer }: { children: React.ReactNode; foot
 
       {/* Bottom padding leaves room for the mobile nav bar. */}
       <main id="main" className="pb-[5.5rem] pt-16 lg:pb-6">
-        <div className="mx-auto max-w-[1980px] px-4 py-6 sm:px-6 lg:px-8">
+        {/* Capped, not infinite: a 1920px screen holding a 2400px-wide layout
+            renders every card as a stamp. ~1780px keeps four-column rows at a
+            genuinely poster-like size on any desktop. */}
+        <div className="mx-auto max-w-[1780px] px-4 py-6 sm:px-6 lg:px-8">
           <SiteNotice />
           {children}
           {/* The small wide units have no natural home in a grid, so they close every

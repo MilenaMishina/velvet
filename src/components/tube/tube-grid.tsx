@@ -15,7 +15,13 @@ import { cn } from '@/lib/utils';
  * still plays full-length, an AZNude 16:9 frame stays 16:9) — a centre crop that
  * beheads a portrait poster is worse than a slightly ragged row bottom.
  */
-const GRID_LAYOUT = 'grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6';
+/**
+ * Cards must read as video posters, not postage stamps: five columns is the
+ * ceiling — on a 1920px screen a sixth column drops the card under 300px, which
+ * is exactly the "too small" effect visitors complain about. The widest screens
+ * get bigger cards, not more of them.
+ */
+const GRID_LAYOUT = 'grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4 2xl:grid-cols-5';
 
 export interface TubeGridProps {
   videos: TubeVideo[];
