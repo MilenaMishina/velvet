@@ -1,4 +1,8 @@
-import { ExternalLink, MonitorPlay } from 'lucide-react';
+'use client';
+
+import Image from 'next/image';
+import { ExternalLink, Images, MonitorPlay } from 'lucide-react';
+import * as React from 'react';
 
 import { AdInVideo } from '@/components/ads/ad-invideo';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +10,69 @@ import { Button } from '@/components/ui/button';
 import type { TubeVideo } from '@/lib/tube/models';
 
 const PLAYER_SHELL = 'relative isolate aspect-video w-full overflow-hidden rounded-card bg-black';
+
+/**
+ * Photo set viewer for embed_type 'gallery' — the post carried no video at all.
+ * The first shot fills the frame; the rest ride a filmstrip below the stage.
+ */
+function GalleryViewer({ video }: { video: TubeVideo }) {
+  const shots = [video.thumbnailUrl, ...video.galleryUrls].filter(
+    (url): url is string => typeof url === 'string' && url.length > 0,
+  );
+  const [active, setActive] = React.useState(0);
+  // `shots.length > 0` is guaranteed past the early return above.
+  const current = shots[Math.min(active, shots.length - 1)] as string;
+
+  if (shots.length === 0) {
+    return (
+      <div className={PLAYER_SHELL}>
+        <div className="absolute inset-0 grid place-items-center gap-3 text-center">
+          <div className="space-y-2">
+            <Images className="mx-auto size-8 text-foreground-subtle" aria-hidden />
+            <p className="text-sm text-foreground-muted">This photo set has no images stored.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className={PLAYER_SHELL}>
+        <Image
+          src={current}
+          alt={video.title || 'Photo'}
+          fill
+          unoptimized
+          sizes="(min-width: 1024px) 60vw, 100vw"
+          className="absolute inset-0 object-contain"
+        />
+        <span className="pointer-events-none absolute right-2 top-2 z-10 rounded bg-black/85 px-2 py-0.5 text-[0.68rem] font-bold tabular-nums text-white">
+          {active + 1} / {shots.length}
+        </span>
+      </div>
+
+      {shots.length > 1 ? (
+        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {shots.map((url, index) => (
+            <button
+              key={url}
+              type="button"
+              onClick={() => setActive(index)}
+              aria-label={`Photo ${index + 1} of ${shots.length}`}
+              aria-current={index === active}
+              className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-md ring-1 transition-opacity ${
+                index === active ? 'ring-2 ring-primary' : 'ring-white/10 opacity-60 hover:opacity-100'
+              }`}
+            >
+              <Image src={url} alt="" fill unoptimized sizes="96px" className="object-cover" />
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 /**
  * Play surface for an indexed video.
@@ -23,6 +90,10 @@ const PLAYER_SHELL = 'relative isolate aspect-video w-full overflow-hidden round
  */
 export function TubePlayer({ video }: { video: TubeVideo }) {
   const { embedUrl, embedType } = video;
+
+  if (embedType === 'gallery') {
+    return <GalleryViewer video={video} />;
+  }
 
   if (embedType === 'iframe' && embedUrl) {
     return (
@@ -83,7 +154,13 @@ export function TubePlayerMeta({ video }: { video: TubeVideo }) {
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs text-foreground-subtle">
       <Badge tone={video.embedType === 'link' ? 'warning' : 'primary'}>
-        {video.embedType === 'iframe' ? 'Publisher player' : video.embedType === 'video' ? 'Source CDN file' : 'Link only'}
+        {video.embedType === 'iframe'
+          ? 'Publisher player'
+          : video.embedType === 'video'
+            ? 'Source CDN file'
+            : video.embedType === 'gallery'
+              ? 'Photo set'
+              : 'Link only'}
       </Badge>
       <span>
         Plays from {video.sourceName}

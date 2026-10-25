@@ -11,6 +11,10 @@ export type ThemeId = (typeof THEME_IDS)[number];
 
 export const DEFAULT_THEME: ThemeId = 'obsidian';
 
+/**
+ * NOTE: the ids are stable — `obsidian` has shipped since the first release and
+ * lives in visitors' localStorage. Only labels and palettes change freely.
+
 /** localStorage key. Versioned so a token rename can't resurrect a dead value. */
 export const THEME_STORAGE_KEY = 'velvet.theme.v1';
 
@@ -27,31 +31,31 @@ export interface ThemeDefinition {
 export const THEMES: readonly ThemeDefinition[] = [
   {
     id: 'obsidian',
-    label: 'Onyx',
-    description: 'Obsidian black with champagne-gold luxury',
-    themeColor: '#070605',
-    swatch: ['#141008', '#d4af6a'],
+    label: 'Velvet Noir',
+    description: 'Velvet black heated by crimson and amber — the house look',
+    themeColor: '#080507',
+    swatch: ['#120a0e', '#ef2069'],
   },
   {
     id: 'midnight',
-    label: 'Noir',
-    description: 'Near-black with an icy blue glow',
-    themeColor: '#04060c',
-    swatch: ['#0a1222', '#3b82f6'],
+    label: 'Bordeaux',
+    description: 'Wine-black lit by magenta rose',
+    themeColor: '#0a040a',
+    swatch: ['#170a17', '#e04bbf'],
   },
   {
     id: 'paper',
     label: 'Daylight',
     description: 'Bright, warm and easy on the eyes',
-    themeColor: '#f7f4ef',
-    swatch: ['#faf7f2', '#2563eb'],
+    themeColor: '#f7f2ef',
+    swatch: ['#faf6f2', '#d61f5c'],
   },
   {
     id: 'glass',
-    label: 'Glass',
-    description: 'Frosted panels over deep blue',
-    themeColor: '#04070f',
-    swatch: ['#0d1a31', '#60a5fa'],
+    label: 'Rouge Glass',
+    description: 'Frosted rose panels over deep plum',
+    themeColor: '#0a0410',
+    swatch: ['#1a0c26', '#e17ce8'],
   },
 ] as const;
 

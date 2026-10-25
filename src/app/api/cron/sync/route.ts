@@ -46,19 +46,41 @@ export async function GET(request: NextRequest) {
   // `sync_runs` records the trigger truthfully in the admin panel instead of every
   // automated run looking like a manual one.
   const trigger = params.get('trigger') === 'cron' ? 'cron' : 'manual';
+  // `full=1` walks past the incremental watermark and re-reads every known post,
+  // expanding multi-video posts stored by an older parser. Deep and slow by design.
+  const full = params.get('full') === '1';
   const sources = (params.get('sources') ?? '')
     .split(',')
     .map((id) => id.trim())
     .filter(Boolean);
 
   try {
-    const summary = await runSync({
-      trigger,
+    const options = {
+      trigger: trigger as 'cron' | 'manual',
       pagesPerSource: Number.isFinite(pages) ? pages : 2,
       maxPostFetches: Number.isFinite(maxPostFetches) ? maxPostFetches : 30,
       ...(sources.length > 0 ? { sources } : {}),
+      ...(full ? { full: true } : {}),
       ...(Number.isFinite(delay) && delay >= 0 ? { requestDelayMs: delay } : {}),
-    });
+    };
+
+    // ── Async mode (the default for automation): the run continues in-process and
+    // the HTTP call returns at once. A routine sync does a couple of hundred
+    // rate-limited requests; blocking a cron HTTP call for all of them is why the
+    // old GitHub action timed out mid-run — the work died with the socket, half
+    // the catalogue unindexed. Automation should fire and read `sync_runs` later;
+    // an operator who wants the summary synchronously passes `wait=1`.
+    if (params.get('wait') !== '1') {
+      void runSync(options).catch(() => {
+        /* The failure is recorded in sync_runs by runSync itself. */
+      });
+      return NextResponse.json(
+        { data: { started: true, trigger, async: true } },
+        { headers: { 'Cache-Control': 'no-store' } },
+      );
+    }
+
+    const summary = await runSync(options);
     return NextResponse.json({ data: summary }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     return NextResponse.json(

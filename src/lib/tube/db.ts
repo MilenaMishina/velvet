@@ -36,6 +36,10 @@ const COLUMN_MIGRATIONS = [
   // that is permanently behind a bot challenge would be re-fetched on every visit
   // and on every repair run, forever.
   'ALTER TABLE videos ADD COLUMN resolve_attempted_at TEXT',
+  // The post's own photo gallery, serialized as a JSON array of CDN URLs. Empty for
+  // plain video rows; image-only posts (a photo set with no video at all) store the
+  // whole set here and ride embed_type 'gallery'.
+  'ALTER TABLE videos ADD COLUMN images TEXT',
   'ALTER TABLE comments ADD COLUMN author_name TEXT',
   // One-time backfill for comments written before names were stored on the row. On a
   // database that never had a users table this fails harmlessly, like every other
@@ -189,6 +193,16 @@ export interface ListVideosParams {
   excludePinned?: boolean;
 }
 
+function parseGallery(value: unknown): string[] {
+  if (value == null) return [];
+  try {
+    const parsed = JSON.parse(String(value)) as unknown;
+    return Array.isArray(parsed) ? parsed.filter((url): url is string => typeof url === 'string' && url.length > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
 function rowToVideo(row: Record<string, unknown>, sourceName: string): TubeVideo {
   let tags: string[] = [];
   try {
@@ -214,6 +228,7 @@ function rowToVideo(row: Record<string, unknown>, sourceName: string): TubeVideo
     views: Number(row.views ?? 0),
     aspectRatio: Number(row.aspect_ratio) > 0 ? Number(row.aspect_ratio) : DEFAULT_ASPECT_RATIO,
     commentCount: Number(row.comment_count ?? 0),
+    galleryUrls: parseGallery(row.images),
     pinned: row.pinned_at != null,
     status: (String(row.status) as TubeStatus) || 'published',
   };
@@ -228,8 +243,9 @@ export function listVideos(params: ListVideosParams = {}): { items: TubeVideo[];
   const args: unknown[] = [];
   where.push("status = 'published'");
   // Operator switch: hide rows we could only link to. Off by default, because a
-  // card that says "open the original" is honest and still worth browsing.
-  if (getSetting('hide_link_only') === '1') where.push('embed_url IS NOT NULL');
+  // card that says "open the original" is honest and still worth browsing. A photo
+  // set carries no embed_url but is real content, so it survives the filter.
+  if (getSetting('hide_link_only') === '1') where.push("(embed_url IS NOT NULL OR embed_type = 'gallery')");
   if (params.excludePinned) where.push('pinned_at IS NULL');
   if (params.q) {
     where.push('(title LIKE ? OR tags LIKE ?)');
@@ -253,6 +269,12 @@ export function listVideos(params: ListVideosParams = {}): { items: TubeVideo[];
   const orderSql =
     params.sort === 'views' ? 'views DESC, COALESCE(published_at, scraped_at) DESC'
     : params.sort === 'oldest' ? 'COALESCE(published_at, scraped_at) ASC'
+    // "Trending" is live velocity, computed on every read — never a stored rank:
+    // views per day since release, smoothed by two days so a scene that went up
+    // this morning does not divide by zero. It re-ranks the moment anyone watches
+    // anything, which is what a chart is supposed to do.
+    : params.sort === 'trending'
+      ? `(views + 1.0) / ((julianday('now') - julianday(COALESCE(published_at, scraped_at))) + 2) DESC, views DESC, COALESCE(published_at, scraped_at) DESC`
     : 'COALESCE(published_at, scraped_at) DESC, id DESC';
 
   const totalRow = db.prepare(`SELECT COUNT(*) AS n FROM videos WHERE ${whereSql}`).get(...args) as { n: number } | undefined;
@@ -311,6 +333,14 @@ export interface UpsertVideoInput {
   durationSeconds?: number | null;
   tags?: string[];
   publishedAt?: string | null;
+  /** Photo gallery beyond the poster (image-only posts carry the whole set). */
+  galleryUrls?: string[];
+  /**
+   * Overwrite an existing row's embed unconditionally. Set by structured post
+   * parsers — the post itself was read, so its mp4 outranks whatever an older
+   * parser guessed (legacy runs filed related-post embeds as players).
+   */
+  replaceEmbed?: boolean;
 }
 
 const now = () => new Date().toISOString();
@@ -318,16 +348,16 @@ const now = () => new Date().toISOString();
 /** Insert a new video, or refresh an existing row without clobbering edits/views. */
 export function upsertVideo(input: UpsertVideoInput): { added: boolean } {
   const db = getDb();
-  const existing = db.prepare('SELECT id, embed_url, embed_type FROM videos WHERE id = ?').get(input.id) as
-    | { id: string; embed_url: string | null; embed_type: string }
+  const existing = db.prepare('SELECT id, embed_url, embed_type, published_at FROM videos WHERE id = ?').get(input.id) as
+    | { id: string; embed_url: string | null; embed_type: string; published_at: string | null }
     | undefined;
 
   if (!existing) {
     db.prepare(
       `INSERT INTO videos
        (id, source_id, title, description, thumbnail_url, embed_url, embed_type, page_url,
-        duration_seconds, tags, published_at, scraped_at, updated_at, views, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'published')`,
+        duration_seconds, tags, published_at, scraped_at, updated_at, views, status, images)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'published', ?)`,
     ).run(
       input.id,
       input.sourceId,
@@ -342,12 +372,50 @@ export function upsertVideo(input: UpsertVideoInput): { added: boolean } {
       input.publishedAt ?? null,
       now(),
       now(),
+      input.galleryUrls && input.galleryUrls.length > 0 ? JSON.stringify(input.galleryUrls) : null,
     );
     return { added: true };
   }
 
+  // A gallery arriving later than the video (or on a row that was link-only) is a
+  // genuine upgrade: store it without touching operator edits. When the input row
+  // is a photo set, the type upgrade rides with it — a legacy 'link' row holding a
+  // full image set is exactly the state that renders as "no player" while the
+  // photos sit unwatched in the database.
+  if (input.galleryUrls && input.galleryUrls.length > 0) {
+    // 'link' rows promote on any upgrade; with replaceEmbed the post itself was
+    // read, so a photo set outranks whatever player an older parser guessed.
+    const promote = input.embedType === 'gallery' && (existing.embed_type === 'link' || input.replaceEmbed);
+    db.prepare('UPDATE videos SET images = ?, updated_at = ? WHERE id = ?').run(
+      JSON.stringify(input.galleryUrls),
+      now(),
+      input.id,
+    );
+    if (promote) {
+      db.prepare("UPDATE videos SET embed_type = 'gallery', embed_url = NULL, updated_at = ? WHERE id = ?").run(now(), input.id);
+    }
+  }
+
+  // A source date arriving for a row that never had one is the other half of that
+  // upgrade — rows the old parser stored play fine but sort by scrape time instead
+  // of their real chronology. A date is only ever filled in, never overwritten.
+  if (input.publishedAt && !existing.published_at) {
+    db.prepare('UPDATE videos SET published_at = ?, updated_at = ? WHERE id = ?').run(
+      input.publishedAt,
+      now(),
+      input.id,
+    );
+  }
+
   // Refresh embeddability for rows that previously had no playable embed.
   if (!existing.embed_url && input.embedUrl) {
+    db.prepare('UPDATE videos SET embed_url = ?, embed_type = ?, updated_at = ? WHERE id = ?').run(
+      input.embedUrl,
+      input.embedType,
+      now(),
+      input.id,
+    );
+  } else if (input.replaceEmbed && input.embedUrl && input.embedUrl !== existing.embed_url) {
     db.prepare('UPDATE videos SET embed_url = ?, embed_type = ?, updated_at = ? WHERE id = ?').run(
       input.embedUrl,
       input.embedType,
@@ -363,6 +431,82 @@ export function upsertVideo(input: UpsertVideoInput): { added: boolean } {
     );
   }
   return { added: false };
+}
+
+// ── Thumbnail dedupe ─────────────────────────────────────────────────────────
+
+/**
+ * The last video that claimed each poster, newest row wins.
+ *
+ * Sources reuse stills across uploads — Desi Aurora's four videos share one frame —
+ * and a frame that faces two cards on one grid is the most obvious scraping
+ * fingerprint there is. Sharing a URL is legitimate; claiming it is not.
+ */
+interface ThumbnailClaim {
+  videoId: string;
+  thumbnailUrl: string;
+  rank: number;
+}
+
+function thumbnailClaims(): Map<string, ThumbnailClaim[]> {
+  const rows = getDb()
+    .prepare(
+      `SELECT id AS videoId, thumbnail_url AS thumbnailUrl,
+              ROW_NUMBER() OVER (PARTITION BY thumbnail_url ORDER BY COALESCE(published_at, scraped_at) DESC, id DESC) AS rank
+       FROM videos
+       WHERE thumbnail_url IS NOT NULL
+         AND thumbnail_url IN (SELECT thumbnail_url FROM videos WHERE thumbnail_url IS NOT NULL GROUP BY thumbnail_url HAVING COUNT(*) > 1)`,
+    )
+    .all() as unknown as ThumbnailClaim[];
+  const byUrl = new Map<string, ThumbnailClaim[]>();
+  for (const row of rows) {
+    const list = byUrl.get(row.thumbnailUrl);
+    if (list) list.push(row);
+    else byUrl.set(row.thumbnailUrl, [row]);
+  }
+  return byUrl;
+}
+
+/**
+ * Re-posters whose owner actually shows that frame, so the dedupe has a fallback
+ * image that is real and free. Empty when the row has no gallery.
+ */
+function galleryFallback(videoId: string): string | null {
+  const row = getDb().prepare('SELECT images FROM videos WHERE id = ?').get(videoId) as
+    | { images: string | null }
+    | undefined;
+  const gallery = parseGallery(row?.images);
+  return gallery[0] ?? null;
+}
+
+/**
+ * Strip every duplicate poster to its newest owner, then null or re-source the rest.
+ *
+ * - The newest row by publish date keeps the frame (visibility trumps index).
+ * - Older twins fall back to their own first gallery photo; with no gallery the
+ *   poster is cleared so the card degrades to its titled placeholder instead of
+ *   lying about what it is.
+ * - Up to `limit` clearings per pass — bounded by design, because a repeated pass
+ *   eventually converges once the sync stores per-video posters.
+ */
+export function dedupeThumbnails(limit = 40): { cleared: number; reSourced: number } {
+  const db = getDb();
+  let cleared = 0;
+  let reSourced = 0;
+  for (const claims of thumbnailClaims().values()) {
+    for (const claim of claims.filter((claim) => claim.rank > 1)) {
+      if (cleared + reSourced >= limit) return { cleared, reSourced };
+      const fallback = galleryFallback(claim.videoId);
+      if (fallback) {
+        db.prepare('UPDATE videos SET thumbnail_url = ? WHERE id = ?').run(fallback, claim.videoId);
+        reSourced += 1;
+      } else {
+        db.prepare('UPDATE videos SET thumbnail_url = NULL WHERE id = ?').run(claim.videoId);
+        cleared += 1;
+      }
+    }
+  }
+  return { cleared, reSourced };
 }
 
 /**
@@ -523,6 +667,35 @@ export function listSourcesWithCounts(): { id: string; name: string; count: numb
 }
 
 /**
+ * Sources with a representative poster, for the studio directory.
+ *
+ * The poster is the most-watched scene's still: it is the image the source's own
+ * audience would recognise, and it turns a list of names into a wall you can
+ * browse the way you browse the catalogue.
+ */
+export function listSourcesWithArtwork(): { id: string; name: string; count: number; thumbnailUrl: string | null }[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT s.id AS id, s.name AS name,
+              COUNT(v.id) AS count,
+              (SELECT v2.thumbnail_url FROM videos v2
+                WHERE v2.source_id = s.id AND v2.status = 'published' AND v2.thumbnail_url IS NOT NULL
+                ORDER BY v2.views DESC LIMIT 1) AS thumbnail_url
+       FROM sources s
+       LEFT JOIN videos v ON v.source_id = s.id AND v.status = 'published'
+       GROUP BY s.id, s.name
+       ORDER BY count DESC, s.name ASC`,
+    )
+    .all() as Record<string, unknown>[];
+  return rows.map((r) => ({
+    id: String(r.id),
+    name: String(r.name),
+    count: Number(r.count),
+    thumbnailUrl: r.thumbnail_url ? String(r.thumbnail_url) : null,
+  }));
+}
+
+/**
  * Operator-pinned videos, oldest pin first.
  *
  * Ordered by when they were pinned, not by date, so the shelf stays where the
@@ -533,6 +706,20 @@ export function listPinnedVideos(limit = 8): TubeVideo[] {
     .prepare(`${VIDEO_SELECT} WHERE v.pinned_at IS NOT NULL AND v.status = 'published' ORDER BY v.pinned_at ASC LIMIT ?`)
     .all(limit) as Record<string, unknown>[];
   return rows.map((row) => rowToVideo(row, String(row.source_name ?? row.source_id)));
+}
+
+/**
+ * A uniformly random published id, for the "Surprise me" route.
+ *
+ * `ORDER BY RANDOM()` is a full scan, which is fine here: the table is a few
+ * thousand rows, the path is hit by humans rather than crawlers, and there is no
+ * cheaper uniform sample in SQLite without maintaining a random column.
+ */
+export function randomVideoId(): string | null {
+  const row = getDb()
+    .prepare("SELECT id FROM videos WHERE status = 'published' ORDER BY RANDOM() LIMIT 1")
+    .get() as { id?: string } | undefined;
+  return row?.id ?? null;
 }
 
 export function countPinnedVideos(): number {
@@ -669,6 +856,31 @@ export function startSyncRun(trigger: 'manual' | 'cron'): number {
     .prepare("INSERT INTO sync_runs (started_at, trigger, status) VALUES (?, ?, 'running')")
     .run(now(), trigger);
   return Number(result.lastInsertRowid);
+}
+
+/**
+ * When this source last contributed a row — the incremental sync's watermark.
+ * Null when the source has never added anything (a full walk is then correct).
+ */
+export function lastAddedAt(sourceId: string): string | null {
+  const row = getDb()
+    .prepare('SELECT MAX(scraped_at) AS last FROM videos WHERE source_id = ?')
+    .get(sourceId) as { last: string | null } | undefined;
+  return row?.last ?? null;
+}
+
+/**
+ * Retire every row pointing at a page the current parser refuses to index (an
+ * erotic story the operator excluded, or a page that has since died). Hidden rows
+ * remain in the table — views, edits — but leave the public feed.
+ */
+export function hideVideoByUrl(pageUrl: string): boolean {
+  const row = getDb().prepare('SELECT id FROM videos WHERE page_url = ?').get(pageUrl) as
+    | { id: string }
+    | undefined;
+  if (!row) return false;
+  getDb().prepare("UPDATE videos SET status = 'hidden', updated_at = ? WHERE id = ?").run(now(), row.id);
+  return true;
 }
 
 export function finishSyncRun(id: number, summary: Omit<import('./models').SyncRunSummary, 'id' | 'startedAt' | 'finishedAt' | 'trigger'>): void {

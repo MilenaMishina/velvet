@@ -1,6 +1,7 @@
 'use client';
 
 import { ArrowUpRight } from 'lucide-react';
+import * as React from 'react';
 
 import { AdSlot } from '@/components/ads/ad-slot';
 import { useAdConfig } from '@/components/ads/ad-config-provider';
@@ -53,7 +54,20 @@ export function AdSmartlink({ className }: { className?: string }) {
  */
 export function AdPartnerBand({ className }: { className?: string }) {
   const config = useAdConfig();
-  if (!config.enabled) return null;
+  // Phone-width band = three stacked 320×50 iframes at the very bottom of every
+  // page, where they are rarely seen but always paid for in memory. Desktop keeps
+  // the full set.
+  const [isWide, setIsWide] = React.useState(false);
+
+  React.useEffect(() => {
+    const query = window.matchMedia('(min-width: 640px)');
+    const update = () => setIsWide(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+
+  if (!config.enabled || !isWide) return null;
 
   return (
     <section aria-label="Partner offers" className={cn('panel space-y-3 rounded-card p-4', className)}>

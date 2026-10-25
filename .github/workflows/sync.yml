@@ -9,9 +9,12 @@ name: Source sync
 #   • Variable  SITE_URL      — the deployed origin, e.g. https://example.com
 #   • Secret    CRON_SECRET   — the same value the site's CRON_SECRET carries
 #
-# A routine run walks 2 listing pages per source and finishes in a few minutes, well
-# inside the free tier. The sync is idempotent — videos are de-duplicated by their
-# page URL — so an overlapping or retried run cannot create doubles.
+# A routine run walks 2 listing pages per source; the endpoint runs the crawl
+# in-process and answers at once (async mode), so the HTTP call never carries the
+# minutes of rate-limited crawling — which is exactly what timed the old blocking
+# version out mid-run. The run's outcome lands in `sync_runs`, visible in the
+# admin panel. The sync is idempotent — videos are de-duplicated by their page
+# URL — so an overlapping or retried run cannot create doubles.
 
 on:
   schedule:
@@ -53,26 +56,27 @@ jobs:
             exit 1
           fi
 
-          # One retry after a beat: the site sits behind a platform that answers a
-          # cold burst with a 503 now and then, and the same URL works seconds later.
-          for attempt in 1 2 3; do
-            echo "Attempt ${attempt} — syncing sources…"
-            code=$(curl -sS -o sync-result.json -w '%{http_code}' --max-time 540 \
+          # Async trigger: the endpoint answers in seconds and the crawl continues
+          # on the server. One retry after a beat covers the cold 503 the platform
+          # answers with now and then.
+          for attempt in 1 2; do
+            echo "Attempt ${attempt} — triggering the sync…"
+            code=$(curl -sS -o trigger-result.json -w '%{http_code}' --max-time 30 \
               -H "x-cron-secret: ${CRON_SECRET}" \
               "${SITE_URL}/api/cron/sync?secret=${CRON_SECRET}&trigger=cron&pages=${PAGES}&maxFetches=${MAX_FETCHES}" \
             ) || code="000"
 
             if [ "${code}" = "200" ]; then
-              echo "Sync completed:"
-              cat sync-result.json
+              echo "Sync triggered (runs in-process on the server):"
+              cat trigger-result.json
               echo
               exit 0
             fi
 
-            echo "::warning::Sync returned HTTP ${code}, attempt ${attempt} of 3."
-            rm -f sync-result.json
+            echo "::warning::Trigger returned HTTP ${code}, attempt ${attempt} of 2."
+            rm -f trigger-result.json
             sleep 20
           done
 
-          echo "::error::All three attempts failed — see the warnings above."
+          echo "::error::Both trigger attempts failed — see the warnings above."
           exit 1

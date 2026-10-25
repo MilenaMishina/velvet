@@ -1,19 +1,17 @@
 'use client';
 
-import { Suspense } from 'react';
-
 import { AdPartnerBand } from '@/components/ads/ad-smartlink';
 import { MobileNav } from '@/components/layout/mobile-nav';
-import { Navbar, NavbarFallback } from '@/components/layout/navbar';
+import { Navbar } from '@/components/layout/navbar';
 import { SiteNotice } from '@/components/layout/site-chrome';
 import { VisitBeacon } from '@/components/layout/visit-beacon';
 
 /**
  * Application chrome: fixed nav, content column, global footer, mobile bottom bar.
  *
- * A client component because the nav reads the query string (active tab, live
- * search term), which opts its subtree into client rendering. The nav sits in its
- * own Suspense boundary so a filter change doesn't re-render the page below it.
+ * A client component because the nav tracks the active path and hosts the search
+ * field. It is deliberately not wrapped in Suspense: the chrome renders the same
+ * markup on the server and the client, so hydration is a straight swap.
  *
  * `footer` is a server component handed down from the root layout — the database
  * reads it needs (live tag counts) stay on the server while the shell stays client.
@@ -21,9 +19,7 @@ import { VisitBeacon } from '@/components/layout/visit-beacon';
 export function AppShell({ children, footer }: { children: React.ReactNode; footer?: React.ReactNode }) {
   return (
     <div className="min-h-screen">
-      <Suspense fallback={<NavbarFallback />}>
-        <Navbar />
-      </Suspense>
+      <Navbar />
 
       {/* Bottom padding leaves room for the mobile nav bar. */}
       <main id="main" className="pb-[5.5rem] pt-16 lg:pb-6">

@@ -1,7 +1,34 @@
 /** Small HTML-parsing helpers for the scraper (regex-based, no dependencies). */
 
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
+
 const DEFAULT_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
+
+/**
+ * Some sites' WAFs fingerprint TLS handshakes: a request that declares a browser
+ * UA but arrives with Node's own TLS signature gets a blind 403, while the same
+ * URL through curl's handshake passes. On a 403 we retry through curl — same
+ * headers, different transport — before giving up.
+ */
+async function fetchViaCurl(url: string, timeoutMs: number): Promise<string> {
+  const { stdout } = await execFileAsync(
+    'curl',
+    [
+      '-s', '-L', '--compressed',
+      '--max-time', String(Math.ceil(timeoutMs / 1000)),
+      '-A', DEFAULT_UA,
+      '-H', 'Accept: text/html,application/xhtml+xml',
+      '-H', 'Accept-Language: en-US,en;q=0.9',
+      url,
+    ],
+    { maxBuffer: 16 * 1024 * 1024, windowsHide: true },
+  );
+  return stdout;
+}
 
 /** Fetch a page as text with a browser UA and a hard timeout. */
 export async function fetchPage(url: string, timeoutMs = 15_000): Promise<string> {
@@ -18,6 +45,10 @@ export async function fetchPage(url: string, timeoutMs = 15_000): Promise<string
       redirect: 'follow',
       cache: 'no-store',
     });
+    if (response.status === 403) {
+      // TLS-fingerprint block: retry through curl before failing the source.
+      return await fetchViaCurl(url, timeoutMs);
+    }
     if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
     return await response.text();
   } finally {

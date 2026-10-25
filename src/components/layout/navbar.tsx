@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
-import { Flame } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Dices, Flame } from 'lucide-react';
 
 import { AccountMenu, AccountMenuFallback } from '@/components/layout/account-menu';
 import { SearchBox } from '@/components/layout/search-box';
@@ -19,63 +19,65 @@ const PRIMARY = [
   { label: 'Sources', href: routes.sources },
 ] as const;
 
-/** Exact match for `/`; prefix match elsewhere — but queries decide ties, so a
- *  plain `/videos` view and the trending view never both read as active. */
-function isActive(pathname: string, search: string, href: string): boolean {
+/**
+ * Exact match for `/`; prefix match for section routes.
+ *
+ * Trending has its own route now, so nothing here needs the query string — which
+ * is what lets the navbar hydrate deterministically (see the component note).
+ */
+function isActive(pathname: string, href: string): boolean {
   if (href === '/') return pathname === '/';
-  const [base, query] = href.split('?');
-  const baseMatch = pathname === base || pathname.startsWith(`${base}/`);
-  if (!baseMatch) return false;
-  if (!query) return !search || !search.includes('sort=');
-  return search.includes(query);
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 /**
  * Sticky top bar — the only global chrome.
  *
- * The old dashboard sidebar is gone: every mainstream tube keeps navigation at
- * the top and gives the full width to thumbnails. Same glass treatment as before,
- * one row taller so the brand has room to breathe.
+ * Deliberately free of `useSearchParams`: reading it here used to suspend the
+ * whole header during hydration, so the server's fallback markup and the real
+ * chrome disagreed and React tore down/rebuilt the entire nav on every load.
+ * The active tab is a pure function of the path now.
  */
 export function Navbar() {
   const pathname = usePathname();
-  const search = useSearchParams().toString();
 
   return (
-    <header className="nav-surface fixed inset-x-0 top-0 z-50 h-16 border-b border-border">
+    <header className="nav-surface fixed inset-x-0 top-0 z-50 h-16">
+      {/* The house gradient as a 2px edge under the bar — the site's signature hairline. */}
+      <div aria-hidden className="heat-gradient absolute inset-x-0 bottom-0 h-0.5 opacity-80" />
       <div className="mx-auto flex h-full max-w-[1980px] items-center gap-3 px-4 sm:gap-4 sm:px-6 lg:px-8">
         <Link
           href={routes.home}
           className="group flex shrink-0 items-center gap-2.5 rounded-control"
           aria-label={`${publicEnv.siteName} — home`}
         >
-          <span className="brand-gradient grid size-9 place-items-center rounded-control shadow-glow transition-transform duration-300 ease-spring group-hover:scale-105">
-            <Flame className="size-[1.1rem] text-primary-foreground" aria-hidden />
+          <span className="heat-gradient grid size-9 place-items-center rounded-control shadow-glow transition-transform duration-300 ease-spring group-hover:scale-105 group-hover:rotate-3">
+            <Flame className="size-[1.15rem] text-primary-foreground" aria-hidden />
           </span>
-          <span className="brand-text hidden font-display text-lg font-bold tracking-[-0.02em] sm:inline">
-            {publicEnv.siteName}
+          <span className="hidden text-xl font-extrabold tracking-[-0.03em] sm:inline">
+            <span className="text-foreground">{publicEnv.siteName}</span>
           </span>
         </Link>
 
-        <nav aria-label="Primary" className="hidden shrink-0 items-center gap-1 xl:flex">
+        <nav aria-label="Primary" className="hidden shrink-0 items-center gap-0.5 lg:flex">
           {PRIMARY.map((item) => {
-            const active = isActive(pathname, search, item.href);
+            const active = isActive(pathname, item.href);
             return (
               <Link
                 key={item.label}
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'relative rounded-pill px-3.5 py-2 text-[0.8rem] font-semibold transition-colors',
-                  active ? 'text-primary' : 'text-foreground-muted hover:text-foreground',
+                  'relative rounded-pill px-2 py-2 text-[0.68rem] font-bold uppercase tracking-[0.06em] transition-colors xl:px-3 xl:text-[0.76rem] xl:tracking-[0.08em]',
+                  active ? 'text-foreground' : 'text-foreground-muted hover:text-foreground',
                 )}
               >
                 {item.label}
-                {/* Active marker: a small gold underline that grows in. */}
+                {/* Active marker: the house gradient underline that grows in. */}
                 <span
                   aria-hidden
                   className={cn(
-                    'absolute inset-x-3.5 -bottom-0.5 h-0.5 rounded-pill brand-gradient transition-transform duration-300 ease-spring',
+                    'heat-gradient absolute inset-x-3 -bottom-0.5 h-0.5 rounded-pill transition-transform duration-300 ease-spring',
                     active ? 'scale-x-100' : 'scale-x-0',
                   )}
                 />
@@ -84,10 +86,19 @@ export function Navbar() {
           })}
         </nav>
 
-        <div className="mx-auto flex w-full max-w-2xl">
-          <SearchBox />
+        <div className="mx-auto flex min-w-0 max-w-md flex-1 justify-center xl:max-w-2xl">
+          <SearchBox className="min-w-0" />
         </div>
 
+        <Link
+          href={routes.random}
+          prefetch={false}
+          aria-label="Surprise me — open a random scene"
+          title="Surprise me"
+          className="hidden size-10 shrink-0 place-items-center rounded-full text-foreground-muted transition-colors hover:bg-surface-raised hover:text-primary sm:grid"
+        >
+          <Dices className="size-[1.15rem]" aria-hidden />
+        </Link>
         <ThemeSwitcher className="hidden shrink-0 sm:flex" />
         <AccountMenu className="shrink-0" />
       </div>
@@ -101,14 +112,15 @@ export function Navbar() {
  */
 export function NavbarFallback() {
   return (
-    <header className="nav-surface fixed inset-x-0 top-0 z-50 h-16 border-b border-border" aria-hidden>
+    <header className="nav-surface fixed inset-x-0 top-0 z-50 h-16" aria-hidden>
+      <div aria-hidden className="heat-gradient absolute inset-x-0 bottom-0 h-0.5 opacity-80" />
       <div className="mx-auto flex h-full max-w-[1980px] items-center gap-3 px-4 sm:gap-4 sm:px-6 lg:px-8">
         <div className="flex shrink-0 items-center gap-2.5">
-          <span className="brand-gradient grid size-9 place-items-center rounded-control shadow-glow">
-            <Flame className="size-[1.1rem] text-primary-foreground" />
+          <span className="heat-gradient grid size-9 place-items-center rounded-control shadow-glow">
+            <Flame className="size-[1.15rem] text-primary-foreground" />
           </span>
-          <span className="brand-text hidden font-display text-lg font-bold tracking-[-0.02em] sm:inline">
-            {publicEnv.siteName}
+          <span className="hidden text-xl font-extrabold tracking-[-0.03em] sm:inline">
+            <span className="text-foreground">{publicEnv.siteName}</span>
           </span>
         </div>
         <div className="mx-auto w-full max-w-2xl">

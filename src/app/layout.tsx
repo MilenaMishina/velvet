@@ -1,7 +1,7 @@
 import './globals.css';
 
 import type { Metadata, Viewport } from 'next';
-import { Inter, Sora } from 'next/font/google';
+import { Inter, Outfit } from 'next/font/google';
 
 import { AdConfigProvider } from '@/components/ads/ad-config-provider';
 import { AdPopunder, AdSocialBar } from '@/components/ads/ad-scripts';
@@ -17,6 +17,9 @@ import { adSettingValues } from '@/lib/tube/db';
 /**
  * Variable fonts, self-hosted by `next/font` at build time — no runtime request to
  * Google, which keeps the CSP tight and avoids layout shift.
+ *
+ * Outfit is the display face: geometric, wide at heavy weights, and hot enough
+ * for uppercase section titles set in the house gradient. Inter does the reading.
  */
 const sans = Inter({
   subsets: ['latin'],
@@ -24,10 +27,10 @@ const sans = Inter({
   variable: '--font-sans',
 });
 
-const display = Sora({
+const display = Outfit({
   subsets: ['latin'],
   display: 'swap',
-  weight: ['500', '600', '700'],
+  weight: ['500', '600', '700', '800'],
   variable: '--font-display',
 });
 

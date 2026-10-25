@@ -1,6 +1,7 @@
 'use client';
 
 import Script from 'next/script';
+import * as React from 'react';
 
 import { ADSTERRA_SCRIPTS, type AdConfig } from '@/lib/ads';
 
@@ -20,8 +21,25 @@ export function AdPopunder({ config }: { config: AdConfig }) {
   return <Script id="ad-popunder" src={ADSTERRA_SCRIPTS.popunder.src} strategy="afterInteractive" />;
 }
 
-/** Adsterra's social bar — the floating strip, anchored to the end of the body. */
+/**
+ * Adsterra's social bar — the floating strip, anchored to the end of the body.
+ *
+ * Desktop only, on purpose. On a phone the bar covers the thumb zone and pins a
+ * second, unclosable ad layer over a page that already carries banner units — the
+ * single most common way an ad-supported site starts to feel broken on mobile.
+ * The in-page units are untouched, so nothing monetisable is lost where it shows.
+ */
 export function AdSocialBar({ config }: { config: AdConfig }) {
-  if (!config.enabled || !config.pageScripts) return null;
+  const [isDesktop, setIsDesktop] = React.useState(false);
+
+  React.useEffect(() => {
+    const query = window.matchMedia('(min-width: 1024px)');
+    const update = () => setIsDesktop(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+
+  if (!config.enabled || !config.pageScripts || !isDesktop) return null;
   return <Script id="ad-social-bar" src={ADSTERRA_SCRIPTS.socialBar.src} strategy="afterInteractive" />;
 }

@@ -6,7 +6,8 @@ import { notFound } from 'next/navigation';
 import { AdLeadStrip, AdSlot } from '@/components/ads/ad-slot';
 import { AdNative } from '@/components/ads/ad-native';
 import { SectionHeading } from '@/components/layout/page-header';
-import { TubeGrid } from '@/components/tube/tube-grid';
+import { HistoryRecorder } from '@/components/tube/history-recorder';
+import { TubeRow } from '@/components/tube/tube-grid';
 import { TubePlayer } from '@/components/tube/tube-player';
 import { VideoComments } from '@/components/tube/video-comments';
 import { ViewBeacon } from '@/components/tube/view-beacon';
@@ -15,7 +16,6 @@ import { formatDuration, formatRelativeTime } from '@/lib/format';
 import { routes } from '@/lib/routes';
 import { getRelatedVideos, getVideoById, listComments } from '@/lib/tube/db';
 import { resolveVideoPlayer } from '@/lib/tube/resolve';
-import { cn } from '@/lib/utils';
 
 /** Local database state per request — the catalogue changes on every sync. */
 export const dynamic = 'force-dynamic';
@@ -55,11 +55,24 @@ export default async function SourceVideoPage({ params }: { params: { id: string
 
   return (
     <div className="space-y-8">
+      <HistoryRecorder
+        entry={{
+          id: video.id,
+          title: video.title || 'Untitled',
+          thumbnailUrl: video.thumbnailUrl,
+          sourceName: video.sourceName,
+          sourceId: video.sourceId,
+          durationSeconds: video.durationSeconds,
+          views: video.views,
+          pageUrl: video.pageUrl,
+        }}
+      />
       <AdLeadStrip />
 
       {/* ── The player ────────────────────────────────────────────────────────── */}
       <div className="mx-auto w-full max-w-6xl">
-        <div className="overflow-hidden rounded-card shadow-lifted ring-1 ring-border">
+        {/* The house glow frames the screen as the centrepiece the way a cinema screen does. */}
+        <div className="overflow-hidden rounded-card ring-1 ring-primary/25 [box-shadow:var(--shadow-lifted),0_0_70px_-24px_hsl(var(--primary)/0.4)]">
           <TubePlayer video={video} />
         </div>
       </div>
@@ -158,13 +171,17 @@ export default async function SourceVideoPage({ params }: { params: { id: string
           <AdNative />
         </div>
 
-        <aside className={cn('min-w-0 space-y-4')}>
+        <aside className="min-w-0 space-y-4 lg:sticky lg:top-24 lg:self-start">
           <AdSlot placement="watch-rectangle" />
 
           {related.length > 0 ? (
             <>
               <SectionHeading title="More like this" />
-              <TubeGrid videos={related} layout="columns-1 gap-x-4 sm:columns-2 lg:columns-1 2xl:columns-2" />
+              <div className="flex flex-col gap-3">
+                {related.map((video) => (
+                  <TubeRow key={video.id} video={video} />
+                ))}
+              </div>
             </>
           ) : null}
 

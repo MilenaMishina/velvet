@@ -3,188 +3,194 @@
 @tailwind utilities;
 
 /* ------------------------------------------------------------------------- *
- * Design tokens.
+ * Design tokens — "Velvet Rouge".
  *
- * Colours are stored as bare HSL triplets ("240 24% 6%") so Tailwind can wrap
+ * Colours are stored as bare HSL triplets ("347 94% 56%") so Tailwind can wrap
  * them in `hsl(var(--token) / <alpha-value>)` and every `/50` opacity modifier
  * keeps working. Switching theme = swapping `data-theme` on <html>.
  *
- * `--surface-alpha` + `--blur-panel` are what make the Glass theme translucent
- * without a single conditional in component code: panels always render with
- * `background: hsl(var(--surface) / var(--surface-alpha))`.
+ * The brand hero is heat, not gold: a hot crimson-rose primary melting into an
+ * amber accent, on a wine-tinted velvet black. Headlines are set in a geometric
+ * display face (Outfit); everything else is Inter.
  * ------------------------------------------------------------------------- */
 
 @layer base {
   :root {
-    --radius-card: 1.15rem;
+    --radius-card: 1rem;
     --radius-control: 0.75rem;
     --blur-nav: 22px;
     --blur-panel: 0px;
     --surface-alpha: 1;
     --border-alpha: 1;
-    --nav-alpha: 0.72;
+    --nav-alpha: 0.82;
     --panel-saturate: 100%;
+
+    /* The house gradient: rose → crimson → amber. Used by the nav hairline,
+       buttons, chips and the play glyph — one signature, everywhere. */
+    --heat: linear-gradient(115deg, hsl(340 92% 62%), hsl(356 88% 58%) 48%, hsl(27 96% 56%));
   }
 
-  /* ── Onyx (id: obsidian): the default. A near-black cinematic charcoal with
-     champagne-gold and deep rose. The backdrop stays under 2.5% lightness so posters
-     carry the colour — the whole point of a thumbnails-first site — while the gold
-     reads as luxury and the rose as seduction. */
+  /* ── Velvet Noir (id: obsidian) — the default. A wine-tinted near-black, so
+     deep that posters carry all the colour, heated by crimson and amber.
+     `--surface-alpha` + `--blur-panel` are what make the Glass theme translucent
+     without a single conditional in component code. ── */
   :root,
   [data-theme='obsidian'] {
     color-scheme: dark;
 
-    --bg: 24 24% 2.5%;
-    --surface: 26 22% 5.5%;
-    --surface-raised: 27 20% 9%;
-    --surface-sunken: 24 40% 1.5%;
+    --bg: 344 30% 3%;
+    --surface: 343 24% 6.5%;
+    --surface-raised: 342 22% 10%;
+    --surface-sunken: 345 42% 1.8%;
 
-    --border: 33 18% 14%;
-    --border-strong: 38 30% 27%;
+    --border: 343 20% 14%;
+    --border-strong: 349 42% 27%;
 
-    --fg: 42 40% 98%;
-    --fg-muted: 38 16% 75%;
-    --fg-subtle: 35 12% 56%;
+    --fg: 340 32% 98%;
+    --fg-muted: 341 14% 75%;
+    --fg-subtle: 344 10% 56%;
 
-    --primary: 43 68% 64%;
-    --primary-fg: 30 60% 6%;
-    --accent: 344 74% 66%;
-    --accent-fg: 20 60% 8%;
-    --ring: 43 68% 68%;
+    --primary: 347 94% 58%;
+    --primary-fg: 20 70% 6%;
+    --accent: 27 95% 57%;
+    --accent-fg: 20 70% 6%;
+    --ring: 347 94% 62%;
 
     --success: 152 64% 46%;
     --warning: 38 94% 58%;
     --danger: 356 80% 60%;
 
-    --shadow-soft: 0 1px 2px hsl(28 60% 1% / 0.6);
-    --shadow-card: 0 14px 34px -14px hsl(28 60% 1% / 0.85);
-    --shadow-lifted: 0 30px 70px -26px hsl(28 70% 1% / 0.95);
-    --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.35), 0 22px 60px -20px hsl(var(--primary) / 0.5);
+    --shadow-soft: 0 1px 2px hsl(345 60% 1% / 0.6);
+    --shadow-card: 0 14px 34px -14px hsl(345 60% 1% / 0.85);
+    --shadow-lifted: 0 30px 70px -26px hsl(345 70% 1% / 0.95);
+    --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.5), 0 18px 54px -16px hsl(var(--primary) / 0.55);
 
     --aurora:
-      radial-gradient(58rem 30rem at 12% -8%, hsl(43 70% 58% / 0.11), transparent 62%),
-      radial-gradient(46rem 26rem at 92% 4%, hsl(344 76% 58% / 0.09), transparent 60%),
-      radial-gradient(40rem 28rem at 50% 108%, hsl(340 55% 45% / 0.08), transparent 65%);
-  }/* ── Noir (id: midnight). Near-black blue, icy azure + hot rose. ──
-   Deliberately dark: the backdrop stays under 6% lightness so posters carry
-   the colour, which is the whole point of a thumbnails-first site. */
+      radial-gradient(58rem 32rem at 12% -10%, hsl(347 94% 50% / 0.2), transparent 62%),
+      radial-gradient(46rem 26rem at 94% 2%, hsl(27 95% 52% / 0.12), transparent 60%),
+      radial-gradient(44rem 30rem at 50% 112%, hsl(356 88% 45% / 0.1), transparent 65%);
+  }
+
+  /* ── Bordeaux (id: midnight). Wine-black lit by magenta-rose, a touch colder
+     and more nocturnal than the default. ── */
   [data-theme='midnight'] {
     color-scheme: dark;
 
-    --bg: 220 45% 4%;
-    --surface: 221 38% 8%;
-    --surface-raised: 220 33% 12%;
-    --surface-sunken: 221 52% 2%;
+    --bg: 318 38% 4%;
+    --surface: 320 32% 8%;
+    --surface-raised: 319 28% 12%;
+    --surface-sunken: 320 48% 2%;
 
-    --border: 220 25% 17%;
-    --border-strong: 220 30% 28%;
+    --border: 318 24% 17%;
+    --border-strong: 322 42% 28%;
 
-    --fg: 214 40% 98%;
-    --fg-muted: 216 20% 73%;
-    --fg-subtle: 217 14% 55%;
+    --fg: 322 36% 98%;
+    --fg-muted: 321 18% 74%;
+    --fg-subtle: 320 14% 56%;
 
-    --primary: 213 94% 61%;
-    --primary-fg: 222 60% 6%;
-    --accent: 330 88% 63%;
-    --accent-fg: 330 60% 7%;
-    --ring: 213 94% 68%;
+    --primary: 328 92% 62%;
+    --primary-fg: 320 60% 6%;
+    --accent: 347 92% 62%;
+    --accent-fg: 320 60% 6%;
+    --ring: 328 92% 66%;
 
     --success: 152 64% 46%;
     --warning: 38 94% 58%;
     --danger: 356 80% 60%;
 
-    --shadow-soft: 0 1px 2px hsl(220 60% 1% / 0.6);
-    --shadow-card: 0 10px 30px -12px hsl(220 60% 1% / 0.8);
-    --shadow-lifted: 0 26px 60px -22px hsl(220 70% 1% / 0.9);
-    --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.35), 0 18px 50px -18px hsl(var(--primary) / 0.6);
+    --shadow-soft: 0 1px 2px hsl(320 60% 1% / 0.6);
+    --shadow-card: 0 10px 30px -12px hsl(320 60% 1% / 0.8);
+    --shadow-lifted: 0 26px 60px -22px hsl(320 70% 1% / 0.9);
+    --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.45), 0 18px 50px -18px hsl(var(--primary) / 0.6);
 
     --aurora:
-      radial-gradient(58rem 30rem at 12% -8%, hsl(213 94% 55% / 0.26), transparent 62%),
-      radial-gradient(46rem 26rem at 92% 4%, hsl(330 88% 58% / 0.18), transparent 60%),
-      radial-gradient(40rem 28rem at 50% 108%, hsl(258 84% 60% / 0.14), transparent 65%);
+      radial-gradient(58rem 30rem at 12% -8%, hsl(328 92% 56% / 0.22), transparent 62%),
+      radial-gradient(46rem 26rem at 92% 4%, hsl(347 90% 56% / 0.14), transparent 60%),
+      radial-gradient(40rem 28rem at 50% 108%, hsl(266 84% 52% / 0.12), transparent 65%);
   }
 
-  /* ── Paper: warm light. Soft shadows, generous air, ink-on-cream contrast. ── */
+  /* ── Daylight (id: paper): warm light, crimson accents. Soft shadows, ink-on-
+     cream contrast, still unmistakably the same brand. ── */
   [data-theme='paper'] {
     color-scheme: light;
 
-    --bg: 38 44% 96%;
+    --bg: 24 40% 96%;
     --surface: 0 0% 100%;
-    --surface-raised: 40 50% 99%;
-    --surface-sunken: 36 30% 92%;
+    --surface-raised: 30 50% 99%;
+    --surface-sunken: 20 30% 92%;
 
-    --border: 34 24% 87%;
-    --border-strong: 32 18% 72%;
+    --border: 18 24% 87%;
+    --border-strong: 14 20% 70%;
 
-    --fg: 28 26% 12%;
-    --fg-muted: 28 12% 36%;
-    --fg-subtle: 28 10% 50%;
+    --fg: 340 40% 12%;
+    --fg-muted: 340 12% 36%;
+    --fg-subtle: 340 10% 50%;
 
-    --primary: 221 83% 52%;
+    --primary: 347 85% 50%;
     --primary-fg: 0 0% 100%;
-    --accent: 330 74% 48%;
+    --accent: 24 90% 50%;
     --accent-fg: 0 0% 100%;
-    --ring: 221 83% 54%;
+    --ring: 347 85% 52%;
 
     --success: 152 62% 36%;
     --warning: 32 88% 42%;
     --danger: 356 70% 48%;
 
-    --nav-alpha: 0.78;
-    --shadow-soft: 0 1px 2px hsl(30 24% 40% / 0.1);
-    --shadow-card: 0 12px 28px -16px hsl(30 30% 30% / 0.28);
-    --shadow-lifted: 0 28px 56px -24px hsl(30 30% 25% / 0.32);
-    --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.28), 0 16px 40px -18px hsl(var(--primary) / 0.4);
+    --nav-alpha: 0.8;
+    --shadow-soft: 0 1px 2px hsl(340 30% 40% / 0.1);
+    --shadow-card: 0 12px 28px -16px hsl(340 30% 30% / 0.28);
+    --shadow-lifted: 0 28px 56px -24px hsl(340 30% 25% / 0.32);
+    --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.3), 0 16px 40px -18px hsl(var(--primary) / 0.4);
 
     --aurora:
-      radial-gradient(52rem 28rem at 8% -10%, hsl(221 83% 58% / 0.16), transparent 60%),
-      radial-gradient(44rem 24rem at 96% 0%, hsl(330 74% 56% / 0.13), transparent 58%),
-      radial-gradient(38rem 26rem at 46% 106%, hsl(190 70% 55% / 0.1), transparent 62%);
+      radial-gradient(52rem 28rem at 8% -10%, hsl(347 85% 58% / 0.14), transparent 60%),
+      radial-gradient(44rem 24rem at 96% 0%, hsl(24 90% 56% / 0.12), transparent 58%),
+      radial-gradient(38rem 26rem at 46% 106%, hsl(328 80% 56% / 0.08), transparent 62%);
   }
 
-  /* ── Glass: translucent frosted panels floating over deep blue. ── */
+  /* ── Rouge Glass (id: glass): frosted dusty-rose panels floating over a deep
+     plum room. The two alpha knobs are what make everything translucent. ── */
   [data-theme='glass'] {
     color-scheme: dark;
 
-    --bg: 218 62% 5%;
-    --surface: 210 56% 62%;
-    --surface-raised: 205 70% 70%;
-    --surface-sunken: 214 60% 6%;
+    --bg: 320 48% 5%;
+    --surface: 330 40% 62%;
+    --surface-raised: 326 48% 70%;
+    --surface-sunken: 322 50% 6%;
 
-    --border: 202 70% 82%;
-    --border-strong: 199 90% 78%;
+    --border: 330 60% 82%;
+    --border-strong: 328 80% 76%;
 
-    --fg: 202 40% 98%;
-    --fg-muted: 203 32% 84%;
-    --fg-subtle: 205 24% 70%;
+    --fg: 330 40% 98%;
+    --fg-muted: 328 32% 84%;
+    --fg-subtle: 326 24% 70%;
 
-    --primary: 199 92% 62%;
-    --primary-fg: 214 70% 8%;
-    --accent: 286 88% 74%;
-    --accent-fg: 288 60% 10%;
-    --ring: 199 92% 70%;
+    --primary: 331 90% 68%;
+    --primary-fg: 320 60% 8%;
+    --accent: 333 92% 74%;
+    --accent-fg: 320 60% 10%;
+    --ring: 331 90% 72%;
 
     --success: 158 72% 52%;
     --warning: 42 96% 62%;
     --danger: 352 84% 66%;
 
-    /* The two knobs that turn every panel into frosted glass. */
     --surface-alpha: 0.12;
     --border-alpha: 0.22;
-    --nav-alpha: 0.1;
+    --nav-alpha: 0.12;
     --blur-panel: 20px;
     --panel-saturate: 170%;
     --blur-nav: 28px;
 
-    --shadow-soft: 0 1px 2px hsl(214 70% 3% / 0.4);
-    --shadow-card: 0 16px 40px -18px hsl(214 80% 3% / 0.7);
-    --shadow-lifted: 0 30px 70px -26px hsl(214 80% 2% / 0.8);
+    --shadow-soft: 0 1px 2px hsl(322 70% 3% / 0.4);
+    --shadow-card: 0 16px 40px -18px hsl(322 80% 3% / 0.7);
+    --shadow-lifted: 0 30px 70px -26px hsl(322 80% 2% / 0.8);
     --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.45), 0 20px 56px -20px hsl(var(--primary) / 0.5);
 
     --aurora:
-      radial-gradient(56rem 32rem at 10% -6%, hsl(199 92% 58% / 0.42), transparent 62%),
-      radial-gradient(48rem 28rem at 94% 6%, hsl(286 88% 66% / 0.34), transparent 60%),
-      radial-gradient(42rem 30rem at 52% 104%, hsl(168 84% 54% / 0.26), transparent 64%);
+      radial-gradient(56rem 32rem at 10% -6%, hsl(331 90% 60% / 0.35), transparent 62%),
+      radial-gradient(48rem 28rem at 94% 6%, hsl(273 88% 64% / 0.26), transparent 60%),
+      radial-gradient(42rem 30rem at 52% 104%, hsl(347 88% 56% / 0.2), transparent 64%);
   }
 
   html {
@@ -267,7 +273,7 @@
 }
 
 @layer components {
-  /* The one true panel. Opaque in Midnight/Paper, frosted in Glass. */
+  /* The one true panel. Opaque in Velvet Noir/Bordeaux/Daylight, frosted in Rouge Glass. */
   .panel {
     background-color: hsl(var(--surface) / var(--surface-alpha));
     border: 1px solid hsl(var(--border) / var(--border-alpha));
@@ -310,18 +316,31 @@
     );
   }
 
-  .brand-gradient {
-    background-image: linear-gradient(115deg, hsl(var(--primary)), hsl(var(--accent)));
+  /* The house gradient — rose → crimson → amber. The single most repeated
+     flourish on the site (nav logomark, play glyph, active chip, buttons). */
+  .brand-gradient,
+  .heat-gradient {
+    background-image: var(--heat);
   }
 
   .brand-text {
     @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(115deg, hsl(var(--fg)), hsl(var(--primary)) 60%, hsl(var(--accent)));
+    background-image: var(--heat);
+    /* Slightly boosted so text-sized gradients keep their punch. */
+    filter: saturate(1.15) brightness(1.08);
   }
 
-  /* The interactive card lift: poster rises, hairline turns gold. The single
-     most repeated interaction on the site, so it lives here rather than being
-     restated on every card. */
+  /* Gradient bar used under page titles and beside section labels — the two
+     places the brand mark appears in pure geometric form. */
+  .heat-bar {
+    border-radius: 999px;
+    background-image: var(--heat);
+    box-shadow: 0 0 12px hsl(var(--primary) / 0.45), 0 0 26px hsl(var(--accent) / 0.18);
+  }
+
+  /* The interactive card lift: poster rises, hairline turns hot. The single most
+     repeated interaction on the site, so it lives here rather than being restated
+     on every card. */
   .card-lux {
     transition-property: transform, box-shadow, border-color;
     transition-duration: 320ms;
@@ -331,7 +350,7 @@
   .group\/card:hover .card-lux,
   .card-lux:hover {
     transform: translateY(-3px);
-    box-shadow: var(--shadow-lifted), 0 0 0 1px hsl(var(--primary) / 0.45);
+    box-shadow: var(--shadow-lifted), 0 0 0 1px hsl(var(--primary) / 0.55);
   }
 
   /* Luxury chip: the pill used by every filter rail and tag row. */
@@ -340,21 +359,27 @@
     background-color: hsl(var(--surface) / var(--surface-alpha));
     border: 1px solid hsl(var(--border) / var(--border-alpha));
     color: hsl(var(--fg-muted));
-    transition-property: color, border-color, background-color, box-shadow;
+    transition-property: color, border-color, background-color, box-shadow, transform;
     transition-duration: 220ms;
     transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .chip:hover {
-    border-color: hsl(var(--border-strong));
+    border-color: hsl(var(--primary) / 0.55);
     color: hsl(var(--fg));
+    box-shadow: 0 0 14px -4px hsl(var(--primary) / 0.5);
   }
 
   .chip-active {
-    background-image: linear-gradient(115deg, hsl(var(--primary)), hsl(var(--accent)));
+    background-image: var(--heat);
     border-color: transparent;
     color: hsl(var(--primary-fg));
     box-shadow: var(--shadow-glow);
+    filter: saturate(1.1) brightness(1.04);
+  }
+
+  .chip-active:hover {
+    color: hsl(var(--primary-fg));
   }
 
   /* Horizontal snap rail for featured shelves: swipeable, snapped, fading edges. */
@@ -365,15 +390,15 @@
   }
 
   .rail > * {
-    @apply w-[16rem] shrink-0 snap-start sm:w-[17.5rem];
+    @apply w-[16.5rem] shrink-0 snap-start sm:w-[18rem];
   }
 
-  /* A soft gold text-glow for the handful of display headlines that should feel
+  /* A soft heat text-glow for the handful of display headlines that should feel
      lit from behind. */
   .text-glow {
     text-shadow:
-      0 0 18px hsl(var(--primary) / 0.4),
-      0 0 46px hsl(var(--accent) / 0.18);
+      0 0 18px hsl(var(--primary) / 0.45),
+      0 0 46px hsl(var(--accent) / 0.22);
   }
 
   /* Gradient hairline border drawn with padding-box/border-box stops — used on
@@ -382,7 +407,7 @@
     border: 1px solid transparent;
     background:
       linear-gradient(hsl(var(--surface) / var(--surface-alpha)), hsl(var(--surface) / var(--surface-alpha))) padding-box,
-      linear-gradient(135deg, hsl(var(--primary) / 0.55), hsl(var(--border) / 0.8) 38%, hsl(var(--accent) / 0.45)) border-box;
+      linear-gradient(135deg, hsl(var(--primary) / 0.6), hsl(var(--border) / 0.8) 38%, hsl(var(--accent) / 0.5)) border-box;
   }
 
   .mask-fade-b {

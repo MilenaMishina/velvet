@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Flame } from 'lucide-react';
 
 import { publicEnv } from '@/lib/env';
 import { routes } from '@/lib/routes';
@@ -10,6 +11,7 @@ const BROWSE = [
   { label: 'Trending', href: routes.trending },
   { label: 'Tags', href: routes.tags },
   { label: 'Sources', href: routes.sources },
+  { label: 'Surprise me', href: routes.random },
 ];
 
 const LEGAL = [
@@ -39,11 +41,16 @@ export async function SiteFooter() {
   }
 
   return (
-    <footer className="mt-16 border-t border-border/70 pb-10 pt-12">
+    <footer className="relative mt-16 pb-10 pt-12">
+      {/* The house gradient closing the page, the same signature that tops the site. */}
+      <div aria-hidden className="heat-gradient absolute inset-x-0 top-0 h-0.5 opacity-70" />
       <div className="mx-auto grid max-w-[1980px] gap-10 px-4 sm:px-6 lg:grid-cols-[1.4fr_1fr_1.2fr_1fr] lg:px-8">
         {/* Brand column. */}
         <div className="space-y-4">
-          <p className="font-display text-xl font-bold tracking-tight">
+          <p className="flex items-center gap-2 font-display text-xl font-extrabold uppercase tracking-[-0.02em]">
+            <span className="heat-gradient grid size-7 place-items-center rounded-[0.6rem] shadow-glow">
+              <Flame className="size-4 text-primary-foreground" aria-hidden />
+            </span>
             <span className="brand-text">{publicEnv.siteName}</span>
           </p>
           <p className="max-w-sm text-sm leading-relaxed text-foreground-muted">
@@ -62,7 +69,11 @@ export async function SiteFooter() {
           <ul className="mt-4 space-y-2.5">
             {BROWSE.map((item) => (
               <li key={item.href}>
-                <Link href={item.href} className="text-sm text-foreground-muted transition-colors hover:text-primary">
+                <Link
+                  href={item.href}
+                  prefetch={item.href === routes.random ? false : undefined}
+                  className="text-sm text-foreground-muted transition-colors hover:text-primary"
+                >
                   {item.label}
                 </Link>
               </li>

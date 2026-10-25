@@ -20,7 +20,9 @@ export const routes = {
   signup: '/signup',
   admin: '/admin',
   /** Most-viewed across every source we index — our own ranking, not YouTube's. */
-  trending: '/videos?sort=views',
+  trending: '/trending',
+  /** Opens a uniformly random scene. */
+  random: '/random',
   /** The whole tag cloud. */
   tags: '/tags',
   /** Directory of every indexed site. */

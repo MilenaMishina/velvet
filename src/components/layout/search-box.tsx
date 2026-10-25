@@ -1,7 +1,7 @@
 'use client';
 
 import { Search, X } from 'lucide-react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import * as React from 'react';
 
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
@@ -34,11 +34,26 @@ function readRecents(): string[] {
 export function SearchBox({ className, autoFocus = false }: { className?: string; autoFocus?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
-  const params = useSearchParams();
   const onResultsPage = pathname === routes.tube.index;
-  const urlQuery = onResultsPage ? (params.get('q') ?? '') : '';
+  /**
+   * The query string as the browser currently has it.
+   *
+   * Read from `window.location` in an effect instead of `useSearchParams`:
+   * that hook suspends during hydration, and a suspended search field inside the
+   * navbar takes the whole header down with it (server fallback ≠ client chrome).
+   * This component only needs the value to seed itself after a navigation, which
+   * a popstate listener covers just as well.
+   */
+  const [urlQuery, setUrlQuery] = React.useState('');
 
-  const [value, setValue] = React.useState(urlQuery);
+  React.useEffect(() => {
+    const read = () => setUrlQuery(new URLSearchParams(window.location.search).get('q') ?? '');
+    read();
+    window.addEventListener('popstate', read);
+    return () => window.removeEventListener('popstate', read);
+  }, [pathname]);
+
+  const [value, setValue] = React.useState('');
   const [recents, setRecents] = React.useState<string[]>([]);
   const [showRecents, setShowRecents] = React.useState(false);
   const debounced = useDebouncedValue(value, 600);

@@ -23,7 +23,7 @@ export const metadata: Metadata = {
  */
 export const dynamic = 'force-dynamic';
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 18;
 
 const SORTS: ReadonlyArray<{ value: TubeSort; label: string }> = [
   { value: 'newest', label: 'Newest' },

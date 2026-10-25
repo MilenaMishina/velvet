@@ -6,7 +6,6 @@ import * as React from 'react';
 import { TubeGrid, TubeGridSkeleton } from '@/components/tube/tube-grid';
 import { Button } from '@/components/ui/button';
 import { fetchTubePage, type TubeQuery } from '@/lib/tube/api';
-import { useInView } from '@/lib/hooks/use-in-view';
 import type { TubeFeedResult, TubeVideo } from '@/lib/tube/models';
 import { uniqueBy } from '@/lib/utils';
 
@@ -24,8 +23,8 @@ export interface TubeFeedProps {
  *
  * The tube feed pages by number rather than by cursor, so this is a deliberately
  * small cousin of `useInfiniteVideos`: it keeps the accumulated items, asks for
- * `page + 1` when the sentinel approaches, and de-duplicates by id because a
- * sync running between two requests can shift rows between pages.
+ * `page + 1` on request, and de-duplicates by id because a sync running between
+ * two requests can shift rows between pages.
  */
 export function TubeFeed({ initial, query, emptyState }: TubeFeedProps) {
   const [items, setItems] = React.useState<TubeVideo[]>(initial.items);
@@ -78,7 +77,7 @@ export function TubeFeed({ initial, query, emptyState }: TubeFeedProps) {
     }
   }, [page]);
 
-  const sentinelRef = useInView(() => void loadNext(), { enabled: hasMore && !isLoading && !error });
+
 
   if (items.length === 0) {
     return <>{emptyState}</>;
@@ -104,8 +103,16 @@ export function TubeFeed({ initial, query, emptyState }: TubeFeedProps) {
         </div>
       ) : null}
 
+      {/*
+       * Deliberately a button, not an auto-loading sentinel.
+       *
+       * Each appended page is thirty remote posters and their decoded bitmaps;
+       * on a phone, an endless scroll accumulates hundreds of them and the tab gets
+       * reclaimed by the OS. Pagination keeps the document bounded and gives the
+       * visitor an explicit "one more page" control — what the large tubes do.
+       */}
       {hasMore && !error ? (
-        <div ref={sentinelRef} className="flex justify-center pb-4 pt-2">
+        <div className="flex justify-center pb-4 pt-2">
           <Button variant="outline" size="md" pill onClick={() => void loadNext()} disabled={isLoading}>
             {isLoading ? <Loader2 className="animate-spin" aria-hidden /> : null}
             {isLoading ? 'Loading…' : 'Load more'}

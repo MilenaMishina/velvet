@@ -21,9 +21,9 @@ export async function GET(request: NextRequest) {
   const sourceId = params.get('source')?.trim() || undefined;
   const tag = params.get('tag')?.trim() || undefined;
   const sortRaw = params.get('sort');
-  const sort: TubeSort = sortRaw === 'views' || sortRaw === 'oldest' ? sortRaw : 'newest';
+  const sort: TubeSort = sortRaw === 'views' || sortRaw === 'oldest' || sortRaw === 'trending' ? sortRaw : 'newest';
   const page = Number(params.get('page') ?? '1');
-  const perPage = Number(params.get('perPage') ?? '24');
+  const perPage = Number(params.get('perPage') ?? '18');
 
   const result = listVideos({
     q,
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     sort,
     excludePinned: params.get('excludePinned') === 'true',
     page: Number.isFinite(page) ? page : 1,
-    perPage: Number.isFinite(perPage) ? perPage : 24,
+    perPage: Number.isFinite(perPage) ? perPage : 18,
   });
 
   return NextResponse.json(

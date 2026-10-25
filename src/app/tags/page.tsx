@@ -1,11 +1,12 @@
-import { Tags } from 'lucide-react';
+import { ArrowUpRight, Tags } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { EmptyState } from '@/components/feedback/empty-state';
-import { PageHeader } from '@/components/layout/page-header';
+import { PageHeader, SectionHeading } from '@/components/layout/page-header';
+import { formatCompactNumber } from '@/lib/format';
 import { routes } from '@/lib/routes';
-import { topTags } from '@/lib/tube/db';
+import { listSourcesWithCounts, topTags } from '@/lib/tube/db';
 import { cn } from '@/lib/utils';
 
 export const metadata: Metadata = {
@@ -36,6 +37,7 @@ function capClass(index: number): string {
  */
 export default function TagsPage() {
   const tags = topTags(72);
+  const sources = listSourcesWithCounts().filter((source) => source.count > 0);
 
   return (
     <div className="space-y-8">
@@ -67,6 +69,45 @@ export default function TagsPage() {
           ))}
         </ul>
       )}
+
+      {/* A tag page with a thin cloud still has to lead somewhere: the studios are
+          the other axis of the catalogue, so they close the page. */}
+      {sources.length > 0 ? (
+        <section className="space-y-3.5">
+          <SectionHeading
+            title="Browse by studio"
+            actions={
+              <Link
+                href={routes.sources}
+                className="inline-flex items-center gap-0.5 text-[0.66rem] font-bold uppercase tracking-[0.08em] text-foreground-subtle transition-colors hover:text-primary"
+              >
+                All studios
+                <ArrowUpRight className="size-3.5" aria-hidden />
+              </Link>
+            }
+          />
+          <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+            {sources.map((source) => (
+              <li key={source.id}>
+                <Link
+                  href={routes.tube.filtered({ source: source.id })}
+                  className="panel flex items-center gap-2.5 rounded-lg px-3 py-2.5 transition-all duration-300 ease-spring hover:border-primary/40 hover:shadow-card"
+                >
+                  <span className="heat-gradient grid size-8 shrink-0 place-items-center rounded-md font-display text-[0.7rem] font-extrabold uppercase text-primary-foreground">
+                    {source.name.slice(0, 2)}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[0.78rem] font-medium">{source.name}</span>
+                    <span className="block text-[0.62rem] font-bold uppercase tracking-[0.06em] text-foreground-subtle">
+                      {formatCompactNumber(source.count)}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }
