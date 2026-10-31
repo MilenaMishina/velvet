@@ -9,6 +9,18 @@ const DEFAULT_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 
 /**
+ * A real browser's Accept line, wildcard included.
+ *
+ * This is not cosmetic. videocelebs.net answers `Accept: text/html,application/xhtml+xml`
+ * with the right page minus its player (36 KB instead of 39 KB, no iframe, no
+ * flashvars) and the same URL with a browser's full preference list with the player
+ * intact — a bot filter that keys on the header, reported as a perfectly normal 200.
+ * Without the wildcard, a whole source silently indexes as "link only".
+ */
+const BROWSER_ACCEPT =
+  'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8';
+
+/**
  * Some sites' WAFs fingerprint TLS handshakes: a request that declares a browser
  * UA but arrives with Node's own TLS signature gets a blind 403, while the same
  * URL through curl's handshake passes. On a 403 we retry through curl — same
@@ -21,7 +33,7 @@ async function fetchViaCurl(url: string, timeoutMs: number): Promise<string> {
       '-s', '-L', '--compressed',
       '--max-time', String(Math.ceil(timeoutMs / 1000)),
       '-A', DEFAULT_UA,
-      '-H', 'Accept: text/html,application/xhtml+xml',
+      '-H', `Accept: ${BROWSER_ACCEPT}`,
       '-H', 'Accept-Language: en-US,en;q=0.9',
       url,
     ],
@@ -39,7 +51,7 @@ export async function fetchPage(url: string, timeoutMs = 15_000): Promise<string
       signal: controller.signal,
       headers: {
         'User-Agent': DEFAULT_UA,
-        Accept: 'text/html,application/xhtml+xml',
+        Accept: BROWSER_ACCEPT,
         'Accept-Language': 'en-US,en;q=0.9',
       },
       redirect: 'follow',

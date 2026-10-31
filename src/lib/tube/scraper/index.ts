@@ -68,8 +68,12 @@ function videoIdForClip(pageUrl: string, embedUrl: string): string {
 /**
  * Store a parsed post: one row per clip it carries, plus the gallery on the first
  * row (and as fallback posters for the rest).
+ *
+ * Exported so a targeted repair (see `repairLinkOnlyRows`) can re-store a single
+ * repaired post with exactly the same semantics as a full sync, instead of
+ * duplicating the clip/gallery split in a second place.
  */
-function storePost(adapterId: string, post: ScrapedPost, stats: { added: number; updated: number }): void {
+export function storePost(adapterId: string, post: ScrapedPost, stats: { added: number; updated: number }): void {
   const gallery = post.galleryUrls;
 
   if (post.videos.length === 0) {
@@ -172,14 +176,21 @@ export async function runSync(options: SyncOptions): Promise<SyncRunSummary> {
     const sourceDelay = Math.max(politenessDelay, adapter.requestDelayMs ?? 0);
 
     try {
+      // Three consecutive listing failures means the source is down or has closed
+      // the door; one failure is just a transient timeout, and abandoning the walk
+      // for it silently dropped hundreds of pages mid-backfill.
+      let listingFailures = 0;
       for (let page = 1; page <= pagesPerSource; page += 1) {
         const listingUrl = adapter.listingUrl(page);
         let html: string;
         try {
           html = await fetchPage(listingUrl);
+          listingFailures = 0;
         } catch {
           stats.errors += 1;
-          break; // Listing unreachable — skip this source's remaining pages.
+          listingFailures += 1;
+          if (listingFailures >= 3) break;
+          continue;
         }
 
         const entries = adapter.parseListing(html, listingUrl).slice(0, ENTRIES_PER_PAGE_CAP);

@@ -323,6 +323,9 @@ interface SchemaWebPage {
   image?: unknown;
   datePublished?: unknown;
   video?: unknown;
+  /** References (`{ "@id": "…#gallery" }`) to the nodes that hold the real media. */
+  mainEntity?: unknown;
+  mainEntityOfPage?: unknown;
 }
 
 /**
@@ -336,13 +339,74 @@ function schemaWebPage(html: string): SchemaWebPage | null {
   const blocks = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
   for (const block of blocks) {
     try {
-      const found = findWebPage(JSON.parse(block[1] ?? ''));
-      if (found) return found;
+      const root: unknown = JSON.parse(block[1] ?? '');
+      const found = findWebPage(root);
+      if (found) return mergeLinkedMedia(found, root);
     } catch {
       // A malformed block is not fatal — try the next one.
     }
   }
   return null;
+}
+
+/** Index every node in a JSON-LD tree by its `@id`. */
+function indexNodesById(value: unknown, into: Map<string, Record<string, unknown>>, depth = 0): void {
+  if (depth > 8 || value == null || typeof value !== 'object') return;
+  if (Array.isArray(value)) {
+    for (const item of value) indexNodesById(item, into, depth + 1);
+    return;
+  }
+  const node = value as Record<string, unknown>;
+  const id = node['@id'];
+  if (typeof id === 'string') {
+    // A reference (`{ "@id": "…#gallery" }`) and the node it names share an id, and
+    // the reference is walked first because it sits inside the WebPage. The real
+    // node wins: it is the one carrying fields beyond the id.
+    const existing = into.get(id);
+    if (!existing || (Object.keys(existing).length <= 1 && Object.keys(node).length > 1)) {
+      into.set(id, node);
+    }
+  }
+  for (const key of Object.keys(node)) indexNodesById(node[key], into, depth + 1);
+}
+
+/**
+ * Pull the media out of the nodes a post's WebPage points at.
+ *
+ * Desi Babe's platform splits a photo post across two nodes: the WebPage carries no
+ * `image` at all, only `mainEntity: { "@id": "…/post/<slug>#gallery" }`, and the
+ * ImageGallery node behind that id holds the whole set. Reading the WebPage alone
+ * therefore saw "a post with neither a video nor a photo" for every one of those
+ * sets — the exact shape that was being dropped instead of published.
+ */
+function mergeLinkedMedia(page: SchemaWebPage, root: unknown): SchemaWebPage {
+  const merged: SchemaWebPage = { ...page };
+  const byId = new Map<string, Record<string, unknown>>();
+  indexNodesById(root, byId);
+
+  for (const link of [page.mainEntity, page.mainEntityOfPage]) {
+    const id = link && typeof link === 'object' ? (link as { '@id'?: unknown })['@id'] : undefined;
+    if (typeof id !== 'string') continue;
+    const node = byId.get(id);
+    if (!node) continue;
+    const types = Array.isArray(node['@type']) ? node['@type'] : [node['@type']];
+    // A video post points straight at its own VideoObject, which *is* the clip —
+    // there is no `video` field on it to read, so it has to be lifted as the post's
+    // video list. Photo posts point at an ImageGallery whose `image` array is read
+    // the same way as a WebPage that carries the set inline.
+    if (types.includes('VideoObject')) {
+      merged.video ??= [node];
+    } else {
+      merged.video ??= node.video;
+      merged.image ??= node.image;
+    }
+    // A VideoObject dates itself with `uploadDate`; the WebPage with `datePublished`.
+    merged.datePublished ??= node.datePublished ?? node.uploadDate;
+    merged.description ??= node.description;
+    merged.name ??= node.name;
+  }
+
+  return merged;
 }
 
 /** Depth-first search for the `@type: WebPage` node inside a parsed JSON-LD tree. */

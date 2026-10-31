@@ -814,11 +814,19 @@ export interface AdminSourceRow {
 }
 
 export function adminSourceRows(): AdminSourceRow[] {
+  // "Playable" has to mean what a visitor can actually open: a direct clip, an
+  // embed, or a photo set whose images load. A photo post has no embed_url by
+  // design, so counting only embed_url made every source look part-broken purely
+  // for publishing galleries. Hidden rows are excluded on both sides — they are not
+  // in the feed, so they cannot be a gap in it.
   const rows = getDb()
     .prepare(
       `SELECT s.id, s.name, s.base_url, s.enabled, s.last_synced_at,
-              COUNT(v.id) AS total,
-              SUM(CASE WHEN v.embed_url IS NOT NULL THEN 1 ELSE 0 END) AS playable
+              COUNT(CASE WHEN v.status = 'published' THEN 1 END) AS total,
+              SUM(CASE WHEN v.status = 'published'
+                        AND ((v.embed_url IS NOT NULL AND v.embed_url <> '')
+                             OR (v.embed_type = 'gallery' AND v.images IS NOT NULL AND v.images <> '[]'))
+                       THEN 1 ELSE 0 END) AS playable
        FROM sources s LEFT JOIN videos v ON v.source_id = s.id
        GROUP BY s.id ORDER BY total DESC, s.name ASC`,
     )
@@ -1387,6 +1395,7 @@ export function listUnplayableVideos(limit = 25, retryAfterHours = 24): TubeVide
       `${VIDEO_SELECT}
        WHERE v.status = 'published'
          AND (v.embed_url IS NULL OR v.embed_url = '')
+         AND NOT (v.embed_type = 'gallery' AND v.images IS NOT NULL AND v.images <> '[]')
          AND (v.resolve_attempted_at IS NULL OR v.resolve_attempted_at < ?)
        ORDER BY (v.resolve_attempted_at IS NULL) DESC, v.resolve_attempted_at ASC, v.scraped_at DESC
        LIMIT ?`,
@@ -1398,7 +1407,13 @@ export function listUnplayableVideos(limit = 25, retryAfterHours = 24): TubeVide
 /** How many published rows still have no player at all. */
 export function countUnplayableVideos(): number {
   const row = getDb()
-    .prepare("SELECT COUNT(*) AS n FROM videos WHERE status = 'published' AND (embed_url IS NULL OR embed_url = '')")
+    // A photo set needs no embed: its gallery is the content and it plays fine.
+    .prepare(
+      `SELECT COUNT(*) AS n FROM videos
+        WHERE status = 'published'
+          AND (embed_url IS NULL OR embed_url = '')
+          AND NOT (embed_type = 'gallery' AND images IS NOT NULL AND images <> '[]')`,
+    )
     .get() as { n: number } | undefined;
   return Number(row?.n ?? 0);
 }
@@ -1442,7 +1457,14 @@ export function adminStats(): {
     totalVideos: count('SELECT COUNT(*) AS n FROM videos'),
     publishedVideos: count("SELECT COUNT(*) AS n FROM videos WHERE status = 'published'"),
     hiddenVideos: count("SELECT COUNT(*) AS n FROM videos WHERE status = 'hidden'"),
-    playableVideos: count('SELECT COUNT(*) AS n FROM videos WHERE embed_url IS NOT NULL'),
+    // Same definition the per-source bars use: a clip, a frame, or a photo set that
+    // actually has photos. Counting raw embed_url made every gallery a "broken" row.
+    playableVideos: count(
+      `SELECT COUNT(*) AS n FROM videos
+        WHERE status = 'published'
+          AND ((embed_url IS NOT NULL AND embed_url <> '')
+               OR (embed_type = 'gallery' AND images IS NOT NULL AND images <> '[]'))`,
+    ),
     added24h: count("SELECT COUNT(*) AS n FROM videos WHERE scraped_at >= datetime('now', '-1 day')"),
     totalViews: count('SELECT COALESCE(SUM(views), 0) AS n FROM videos'),
     comments: count("SELECT COUNT(*) AS n FROM comments WHERE status = 'visible'"),
